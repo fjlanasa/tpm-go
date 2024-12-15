@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package transit.events;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/fjlanasa/tpm-go/api/v1/events";
+
+message StopEvent {
+  // Common fields
+  string event_id = 1;
+  string vehicle_id = 2;
+  string vehicle_label = 3;
+  string vehicle_consist = 4;
+  
+  // Trip info
+  string service_date = 5;
+  string start_time = 6;
+  string route_id = 7;
+  string branch_route_id = 8;
+  string trunk_route_id = 9;
+  string trip_id = 10;
+  uint32 direction_id = 11;
+  string direction = 12;
+  string direction_destination = 13;
+  
+  // Stop info
+  string stop_id = 14;
+  string parent_station = 15;
+  int32 stop_sequence = 16;
+  int32 stop_count = 17;
+  
+  // Timestamps
+  google.protobuf.Timestamp move_timestamp = 18;
+  google.protobuf.Timestamp stop_timestamp = 19;
+  
+  // Scheduled times
+  int64 scheduled_arrival_time = 20;
+  int64 scheduled_departure_time = 21;
+
+  // Event type
+  enum EventType {
+    ARRIVAL = 0;
+    DEPARTURE = 1;
+  }
+  EventType event_type = 22;
+
+  google.protobuf.Timestamp timestamp = 23;
+}
+
+message DwellTimeEvent {
+  // Common fields
+  string event_id = 1;
+  string vehicle_id = 2;
+  string vehicle_label = 3;
+  string vehicle_consist = 4;
+  
+  // Trip info
+  string service_date = 5;
+  string route_id = 6;
+  string branch_route_id = 7;
+  string trunk_route_id = 8;
+  string trip_id = 9;
+  uint32 direction_id = 10;
+  
+  // Stop info
+  string stop_id = 11;
+  string parent_station = 12;
+  int32 stop_sequence = 13;
+  
+  // Times
+  google.protobuf.Timestamp arrival_time = 14;
+  google.protobuf.Timestamp departure_time = 15;
+  int32 dwell_time_seconds = 16;
+
+  google.protobuf.Timestamp timestamp = 17;
+}
+
+message TravelTimeEvent {
+  // Common fields
+  string event_id = 1;
+  string vehicle_id = 2;
+  string vehicle_label = 3;
+  string vehicle_consist = 4;
+  
+  // Trip info
+  string service_date = 5;
+  string route_id = 6;
+  string branch_route_id = 7;
+  string trunk_route_id = 8;
+  string trip_id = 9;
+  uint32 direction_id = 10;
+  
+  // Stop info
+  string from_stop_id = 11;
+  string to_stop_id = 12;
+  string parent_station = 13;
+  int32 stop_sequence = 14;
+  
+  // Times
+  google.protobuf.Timestamp start_time = 15;
+  google.protobuf.Timestamp end_time = 16;
+  int32 travel_time_seconds = 17;
+  int32 scheduled_travel_time = 18;
+
+  google.protobuf.Timestamp timestamp = 19;
+}
+
+message HeadwayTimeEvent {
+  // Common fields
+  string event_id = 1;
+  
+  // Trip info
+  string service_date = 2;
+  string route_id = 3;
+  string branch_route_id = 4;
+  string trunk_route_id = 5;
+  uint32 direction_id = 6;
+  string direction = 7;
+  
+  // Stop info
+  string stop_id = 8;
+  string parent_station = 9;
+  
+  // Vehicle info
+  string leading_vehicle_id = 10;
+  string following_vehicle_id = 11;
+  
+  // Times
+  google.protobuf.Timestamp timestamp = 16;
+  int32 headway_branch_seconds = 12;
+  int32 headway_trunk_seconds = 13;
+  int32 scheduled_headway_branch = 14;
+  int32 scheduled_headway_trunk = 15;
+} 
+
+message EventCollection {
+  repeated StopEvent stop_events = 1;
+  repeated DwellTimeEvent dwell_time_events = 2;
+  repeated TravelTimeEvent travel_time_events = 3;
+  repeated HeadwayTimeEvent headway_time_events = 4;
+}
