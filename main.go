@@ -35,19 +35,17 @@ func main() {
 	stopEventOutChan := make(chan any)
 	headwayOutChan := make(chan any)
 	dwellOutChan := make(chan any)
+	travelTimeOutChan := make(chan any)
 	// Create source
 	go func() {
 		vpSource := flow.FanOut(source.NewVehiclePositionsSource("MBTA", "https://cdn.mbta.com/realtime/VehiclePositions.pb", 1*time.Second), 2)
 		// Send vehicle position to sink
 		go vpSource[0].Via(flow.NewPassThrough()).To(extension.NewChanSink(vpOutChan))
-		seSource := flow.FanOut(vpSource[1].Via(tpmflow.NewStopEventFlow()), 3)
-		go seSource[0].Via(flow.NewPassThrough()).Via(flow.NewFilter(func(stopEvent *events.StopEvent) bool {
-			return stopEvent.RouteId == "Red"
-		}, 3)).To(extension.NewChanSink(stopEventOutChan))
+		seSource := flow.FanOut(vpSource[1].Via(tpmflow.NewStopEventFlow()), 4)
+		go seSource[0].Via(flow.NewPassThrough()).To(extension.NewChanSink(stopEventOutChan))
 		go seSource[1].Via(tpmflow.NewHeadwayEventFlow()).To(extension.NewChanSink(headwayOutChan))
-		go seSource[2].Via(flow.NewFilter(func(stopEvent *events.StopEvent) bool {
-			return stopEvent.RouteId == "Red"
-		}, 3)).Via(tpmflow.NewDwellEventFlow()).To(extension.NewChanSink(dwellOutChan))
+		go seSource[2].Via(tpmflow.NewDwellEventFlow()).To(extension.NewChanSink(dwellOutChan))
+		go seSource[3].Via(tpmflow.NewTravelTimeEventFlow()).To(extension.NewChanSink(travelTimeOutChan))
 	}()
 	fmt.Println("Waiting for messages...")
 	// Process messages
@@ -92,6 +90,15 @@ func main() {
 					continue
 				}
 				fmt.Printf("Headway Event: Vehicle ID: %s, Route ID: %s, Stop ID: %s, Seconds: %d\n", headwayEvent.LeadingVehicleId, headwayEvent.RouteId, headwayEvent.StopId, headwayEvent.HeadwayTrunkSeconds)
+			case event := <-travelTimeOutChan:
+				if event == nil {
+					continue
+				}
+				travelTimeEvent, ok := event.(*events.TravelTimeEvent)
+				if !ok || travelTimeEvent == nil {
+					continue
+				}
+				fmt.Printf("Travel Time Event: Vehicle ID: %s, Route ID: %s, From Stop ID: %s, To Stop ID: %s, Seconds: %d\n", travelTimeEvent.VehicleId, travelTimeEvent.RouteId, travelTimeEvent.FromStopId, travelTimeEvent.ToStopId, travelTimeEvent.TravelTimeSeconds)
 			}
 		}
 	}()

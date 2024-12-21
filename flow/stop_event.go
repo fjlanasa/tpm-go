@@ -86,9 +86,6 @@ func (s *StopEventFlow) makeStopEvent(vp *gtfs.VehiclePosition, stopId string, e
 }
 
 func (s *StopEventFlow) process(event *gtfs.VehiclePosition) {
-	if event.GetTrip().GetRouteId() != "Red" {
-		return
-	}
 	if previousState, found := s.vehiclesState[event.GetVehicle().GetId()]; found {
 		previous := previousState.vehicle
 		if previous.GetCurrentStatus() == event.GetCurrentStatus() && previous.GetStopId() == event.GetStopId() {
