@@ -10,22 +10,86 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type VehiclePositionState struct {
+type TimestampedVehiclePosition struct {
 	vehicle   *gtfs.VehiclePosition
 	timestamp int64
+}
+
+type VehiclePositionStateManager interface {
+	Get(vehicleID string) (*TimestampedVehiclePosition, bool)
+	Set(vehicleID string, state *TimestampedVehiclePosition)
+	GetAndSet(vehicleID string, state *TimestampedVehiclePosition) (*TimestampedVehiclePosition, *TimestampedVehiclePosition)
+	Remove(vehicleID string)
+	RemoveStale()
+}
+
+type InMemoryVehiclePositionStateManager struct {
+	maxAge        time.Duration
+	vehiclesState map[string]*TimestampedVehiclePosition
+}
+
+func (v *InMemoryVehiclePositionStateManager) Get(vehicleID string) (*TimestampedVehiclePosition, bool) {
+	state, ok := v.vehiclesState[vehicleID]
+	return state, ok
+}
+
+func (v *InMemoryVehiclePositionStateManager) Set(vehicleID string, state *TimestampedVehiclePosition) {
+	v.vehiclesState[vehicleID] = state
+}
+
+func (v *InMemoryVehiclePositionStateManager) Remove(vehicleID string) {
+	delete(v.vehiclesState, vehicleID)
+}
+
+func (v *InMemoryVehiclePositionStateManager) RemoveStale() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		v.RemoveStale()
+	}
+}
+
+func (v *InMemoryVehiclePositionStateManager) GetAndSet(vehicleID string, state *TimestampedVehiclePosition) (*TimestampedVehiclePosition, *TimestampedVehiclePosition) {
+	previous, _ := v.Get(vehicleID)
+	v.Set(vehicleID, state)
+	return previous, state
+}
+
+func NewInMemoryVehiclePositionStateManager(maxAgeArg ...time.Duration) *InMemoryVehiclePositionStateManager {
+	var maxAge time.Duration
+	if len(maxAgeArg) > 0 {
+		maxAge = maxAgeArg[0]
+	} else {
+		maxAge = 1 * time.Hour
+	}
+	manager := &InMemoryVehiclePositionStateManager{
+		maxAge:        maxAge,
+		vehiclesState: make(map[string]*TimestampedVehiclePosition),
+	}
+
+	go manager.RemoveStale()
+	return manager
 }
 
 type StopEventFlow struct {
 	in            chan any
 	out           chan any
-	vehiclesState map[string]*VehiclePositionState
+	vehiclesState VehiclePositionStateManager
 }
 
-func NewStopEventFlow() *StopEventFlow {
+func NewStopEventFlow(state ...VehiclePositionStateManager) *StopEventFlow {
+	var vehiclesState VehiclePositionStateManager
+	if len(state) > 0 {
+		vehiclesState = state[0]
+	} else {
+		vehiclesState = NewInMemoryVehiclePositionStateManager()
+	}
+
 	flow := &StopEventFlow{
 		in:            make(chan any),
 		out:           make(chan any),
-		vehiclesState: make(map[string]*VehiclePositionState),
+		vehiclesState: vehiclesState,
 	}
 	go flow.doStream()
 	return flow
@@ -86,7 +150,10 @@ func (s *StopEventFlow) makeStopEvent(vp *gtfs.VehiclePosition, stopId string, e
 }
 
 func (s *StopEventFlow) process(event *gtfs.VehiclePosition) {
-	if previousState, found := s.vehiclesState[event.GetVehicle().GetId()]; found {
+	if previousState, _ := s.vehiclesState.GetAndSet(event.GetVehicle().GetId(), &TimestampedVehiclePosition{
+		vehicle:   event,
+		timestamp: int64(*event.Timestamp),
+	}); previousState != nil {
 		previous := previousState.vehicle
 		if previous.GetCurrentStatus() == event.GetCurrentStatus() && previous.GetStopId() == event.GetStopId() {
 			return
@@ -111,37 +178,14 @@ func (s *StopEventFlow) process(event *gtfs.VehiclePosition) {
 			// Note: We don't generate events when a vehicle stays IN_TRANSIT_TO the same stop
 		}
 	}
-	s.vehiclesState[event.GetVehicle().GetId()] = &VehiclePositionState{
-		vehicle:   event,
-		timestamp: int64(*event.Timestamp),
-	}
 }
 
-func (s *StopEventFlow) removeStaleVehicles() {
-	now := time.Now().Unix()
-	for vehicleId, state := range s.vehiclesState {
-		// If last event was more than an hour ago
-		if now-state.timestamp > 3600 {
-			delete(s.vehiclesState, vehicleId)
-		}
-	}
-}
 func (s *StopEventFlow) doStream() {
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
 	defer close(s.out)
 
-	for {
-		select {
-		case event, ok := <-s.in: // ok is false if channel is closed, true if value was received
-			if !ok {
-				return
-			}
-			if vp, ok := event.(*gtfs.VehiclePosition); ok {
-				s.process(vp)
-			}
-		case <-ticker.C:
-			s.removeStaleVehicles()
+	for event := range s.in {
+		if vp, ok := event.(*gtfs.VehiclePosition); ok {
+			s.process(vp)
 		}
 	}
 }
