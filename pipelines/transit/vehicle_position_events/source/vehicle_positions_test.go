@@ -1,4 +1,4 @@
-package tests
+package vehicle_position_events
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
-	vehicle_position_events "github.com/fjlanasa/tpm-go/pipelines/transit/vehicle_position_events/source"
+	pb "github.com/fjlanasa/tpm-go/api/v1/events"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -50,16 +50,16 @@ func TestVehiclePositionsSource(t *testing.T) {
 		Body: io.NopCloser(bytes.NewReader(createMockFeedMessage())),
 	}
 
-	source := vehicle_position_events.NewVehiclePositionsSource("TEST", "http://test.com", 100*time.Millisecond)
+	source := NewVehiclePositionsSource("TEST", "http://test.com", 100*time.Millisecond)
 	source.SetHTTPClient(&mockHTTPClient{response: mockResponse})
 
 	// Wait for first message
 	select {
 	case msg := <-source.Out():
-		if vp, ok := msg.(*gtfs.VehiclePosition); !ok {
+		if vp, ok := msg.(*pb.VehiclePositionEvent); !ok {
 			t.Error("expected VehiclePosition")
-		} else if *vp.Vehicle.Id != "v1" {
-			t.Errorf("got vehicle ID %s, want v1", *vp.Vehicle.Id)
+		} else if vp.GetVehicleId() != "v1" {
+			t.Errorf("got vehicle ID %s, want v1", vp.GetVehicleId())
 		}
 	case <-time.After(200 * time.Millisecond):
 		t.Error("timeout waiting for message")

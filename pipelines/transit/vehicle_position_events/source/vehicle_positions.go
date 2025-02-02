@@ -60,7 +60,7 @@ func (v *VehiclePositionsSource) init() {
 
 		for _, entity := range feed.Entity {
 			var status pb.StopStatus
-			switch entity.Vehicle.CurrentStatus.Number() {
+			switch entity.GetVehicle().GetCurrentStatus().Number() {
 			case gtfs.VehiclePosition_IN_TRANSIT_TO.Number():
 				status = pb.StopStatus_IN_TRANSIT_TO
 			case gtfs.VehiclePosition_STOPPED_AT.Number():
@@ -71,17 +71,17 @@ func (v *VehiclePositionsSource) init() {
 			if entity.Vehicle != nil {
 				v.out <- &pb.VehiclePositionEvent{
 					AgencyId:     v.agency_id,
-					EventId:      *entity.Id,
-					VehicleId:    *entity.Id,
-					VehicleLabel: *entity.Vehicle.Vehicle.Label,
-					RouteId:      *entity.Vehicle.Trip.RouteId,
-					TripId:       *entity.Vehicle.Trip.TripId,
-					DirectionId:  uint32(*entity.Vehicle.Trip.DirectionId),
-					StopId:       *entity.Vehicle.StopId,
+					EventId:      entity.GetVehicle().GetVehicle().GetId(),
+					VehicleId:    entity.GetVehicle().GetVehicle().GetId(),
+					VehicleLabel: entity.GetVehicle().GetVehicle().GetLabel(),
+					RouteId:      entity.GetVehicle().GetTrip().GetRouteId(),
+					TripId:       entity.GetVehicle().GetTrip().GetTripId(),
+					DirectionId:  uint32(entity.GetVehicle().GetTrip().GetDirectionId()),
+					StopId:       entity.GetVehicle().GetStopId(),
 					StopStatus:   status,
-					StopSequence: int32(*entity.Vehicle.CurrentStopSequence),
-					Latitude:     float64(*entity.Vehicle.Position.Latitude),
-					Longitude:    float64(*entity.Vehicle.Position.Longitude),
+					StopSequence: int32(entity.GetVehicle().GetCurrentStopSequence()),
+					Latitude:     float64(entity.GetVehicle().GetPosition().GetLatitude()),
+					Longitude:    float64(entity.GetVehicle().GetPosition().GetLongitude()),
 				}
 			}
 		}
