@@ -11,6 +11,9 @@
 # Output of the go coverage tool
 *.out
 
+# Generated OpenAPI files
+api/v1/events/transit.events.json
+
 # Generated protobuf files
 **.pb.go
 

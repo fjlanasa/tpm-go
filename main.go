@@ -10,10 +10,15 @@ import (
 	"syscall"
 	"time"
 
+	"log/slog"
+
 	"github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
 	"github.com/fjlanasa/tpm-go/api/v1/events"
-	tpmflow "github.com/fjlanasa/tpm-go/flow"
-	"github.com/fjlanasa/tpm-go/source"
+	dwell_events "github.com/fjlanasa/tpm-go/pipelines/transit/dwell_events/flow"
+	headway_events "github.com/fjlanasa/tpm-go/pipelines/transit/headway_events/flow"
+	stop_events "github.com/fjlanasa/tpm-go/pipelines/transit/stop_events/flow"
+	travel_time_events "github.com/fjlanasa/tpm-go/pipelines/transit/travel_time_events/flow"
+	vehicle_position_source "github.com/fjlanasa/tpm-go/pipelines/transit/vehicle_position_events/source"
 	"github.com/google/uuid"
 	"github.com/reugn/go-streams/extension"
 	"github.com/reugn/go-streams/flow"
@@ -176,6 +181,7 @@ func (es *EventServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	// Create context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -216,13 +222,13 @@ func main() {
 
 	// Create source and flows
 	go func() {
-		vpSource := flow.FanOut(source.NewVehiclePositionsSource("MBTA", "https://cdn.mbta.com/realtime/VehiclePositions.pb", 1*time.Second), 2)
+		vpSource := flow.FanOut(vehicle_position_source.NewVehiclePositionsSource("MBTA", "https://cdn.mbta.com/realtime/VehiclePositions.pb", 1*time.Second), 2)
 		go vpSource[0].Via(flow.NewPassThrough()).To(extension.NewChanSink(vpOutChan))
-		seSource := flow.FanOut(vpSource[1].Via(tpmflow.NewStopEventFlow()), 4)
+		seSource := flow.FanOut(vpSource[1].Via(stop_events.NewStopEventFlow(ctx)), 4)
 		go seSource[0].Via(flow.NewPassThrough()).To(extension.NewChanSink(stopEventOutChan))
-		go seSource[1].Via(tpmflow.NewHeadwayEventFlow()).To(extension.NewChanSink(headwayOutChan))
-		go seSource[2].Via(tpmflow.NewDwellEventFlow()).To(extension.NewChanSink(dwellOutChan))
-		go seSource[3].Via(tpmflow.NewTravelTimeEventFlow()).To(extension.NewChanSink(travelTimeOutChan))
+		go seSource[1].Via(headway_events.NewHeadwayEventFlow(ctx)).To(extension.NewChanSink(headwayOutChan))
+		go seSource[2].Via(dwell_events.NewDwellEventFlow(ctx)).To(extension.NewChanSink(dwellOutChan))
+		go seSource[3].Via(travel_time_events.NewTravelTimeEventFlow(ctx)).To(extension.NewChanSink(travelTimeOutChan))
 	}()
 
 	// Process messages and broadcast to clients
@@ -232,12 +238,18 @@ func main() {
 			case <-ctx.Done():
 				return
 			case event := <-vpOutChan:
-				if vpEvent, ok := event.(*gtfs.VehiclePosition); ok {
-					fmt.Println("vpEvent", vpEvent)
+				if vpEvent, ok := event.(*events.VehiclePositionEvent); ok {
+					logger.Info(
+						"VehiclePosition",
+						"event_type", "vehicle-position",
+						"route_id", vpEvent.GetRouteId(),
+						"direction_id", vpEvent.GetDirectionId(),
+						"stop_id", vpEvent.GetStopId(),
+					)
 					eventServer.broadcast(EventWrapper{
-						AgencyId:    "",
-						RouteId:     vpEvent.GetTrip().GetRouteId(),
-						DirectionId: vpEvent.GetTrip().GetDirectionId(),
+						AgencyId:    vpEvent.GetAgencyId(),
+						RouteId:     vpEvent.GetRouteId(),
+						DirectionId: vpEvent.GetDirectionId(),
 						StopId:      vpEvent.GetStopId(),
 						EventType:   "vehicle-position",
 						Event:       vpEvent,
@@ -245,45 +257,78 @@ func main() {
 				}
 			case event := <-stopEventOutChan:
 				if stopEvent, ok := event.(*events.StopEvent); ok {
+					logger.Info(
+						"StopEvent",
+						"event_type", "stop",
+						"stop_event_type", stopEvent.EventType,
+						"route_id", stopEvent.RouteId,
+						"direction_id", stopEvent.DirectionId,
+						"stop_id", stopEvent.StopId,
+					)
 					eventServer.broadcast(EventWrapper{
-						AgencyId:    stopEvent.AgencyId,
-						RouteId:     stopEvent.RouteId,
-						DirectionId: stopEvent.DirectionId,
-						StopId:      stopEvent.StopId,
+						AgencyId:    stopEvent.GetAgencyId(),
+						RouteId:     stopEvent.GetRouteId(),
+						DirectionId: stopEvent.GetDirectionId(),
+						StopId:      stopEvent.GetStopId(),
 						EventType:   "stop",
 						Event:       stopEvent,
 					})
 				}
 			case event := <-dwellOutChan:
 				if dwellEvent, ok := event.(*events.DwellTimeEvent); ok {
+					logger.Info(
+						"DwellTimeEvent",
+						"event_type", "dwell",
+						"route_id", dwellEvent.GetRouteId(),
+						"direction_id", dwellEvent.GetDirectionId(),
+						"stop_id", dwellEvent.GetStopId(),
+						"dwell_time_seconds", dwellEvent.GetDwellTimeSeconds(),
+					)
 					eventServer.broadcast(EventWrapper{
-						AgencyId:    dwellEvent.AgencyId,
-						RouteId:     dwellEvent.RouteId,
-						DirectionId: dwellEvent.DirectionId,
-						StopId:      dwellEvent.StopId,
+						AgencyId:    dwellEvent.GetAgencyId(),
+						RouteId:     dwellEvent.GetRouteId(),
+						DirectionId: dwellEvent.GetDirectionId(),
+						StopId:      dwellEvent.GetStopId(),
 						EventType:   "dwell",
 						Event:       dwellEvent,
 					})
 				}
 			case event := <-headwayOutChan:
 				if headwayEvent, ok := event.(*events.HeadwayTimeEvent); ok {
+					logger.Info(
+						"HeadwayTimeEvent",
+						"event_type", "headway",
+						"route_id", headwayEvent.GetRouteId(),
+						"direction_id", headwayEvent.GetDirectionId(),
+						"stop_id", headwayEvent.GetStopId(),
+						"headway_branch_seconds", headwayEvent.GetHeadwayBranchSeconds(),
+						"headway_trunk_seconds", headwayEvent.GetHeadwayTrunkSeconds(),
+					)
 					eventServer.broadcast(EventWrapper{
-						AgencyId:    headwayEvent.AgencyId,
-						RouteId:     headwayEvent.RouteId,
-						DirectionId: headwayEvent.DirectionId,
-						StopId:      headwayEvent.StopId,
+						AgencyId:    headwayEvent.GetAgencyId(),
+						RouteId:     headwayEvent.GetRouteId(),
+						DirectionId: headwayEvent.GetDirectionId(),
+						StopId:      headwayEvent.GetStopId(),
 						EventType:   "headway",
 						Event:       headwayEvent,
 					})
 				}
 			case event := <-travelTimeOutChan:
 				if travelTimeEvent, ok := event.(*events.TravelTimeEvent); ok {
+					logger.Info(
+						"TravelTimeEvent",
+						"event_type", "travel-time",
+						"route_id", travelTimeEvent.GetRouteId(),
+						"direction_id", travelTimeEvent.GetDirectionId(),
+						"origin_stop_id", travelTimeEvent.GetFromStopId(),
+						"destination_stop_id", travelTimeEvent.GetToStopId(),
+					)
 					eventServer.broadcast(EventWrapper{
-						AgencyId:          travelTimeEvent.AgencyId,
-						RouteId:           travelTimeEvent.RouteId,
-						DirectionId:       travelTimeEvent.DirectionId,
-						OriginStopId:      travelTimeEvent.FromStopId,
-						DestinationStopId: travelTimeEvent.ToStopId,
+						AgencyId:          travelTimeEvent.GetAgencyId(),
+						RouteId:           travelTimeEvent.GetRouteId(),
+						DirectionId:       travelTimeEvent.GetDirectionId(),
+						OriginStopId:      travelTimeEvent.GetFromStopId(),
+						DestinationStopId: travelTimeEvent.GetToStopId(),
 						EventType:         "travel-time",
 						Event:             travelTimeEvent,
 					})
