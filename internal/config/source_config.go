@@ -6,7 +6,6 @@ type SourceType string
 
 const (
 	SourceTypeHTTP       SourceType = "http"
-	SourceTypePipeline   SourceType = "pipeline"
 	SourceTypeBucket     SourceType = "bucket"
 	SourceTypeFileSystem SourceType = "file_system"
 	SourceTypeRedis      SourceType = "redis"
@@ -35,8 +34,9 @@ type RedisSourceConfig struct {
 }
 
 type SourceConfig struct {
-	Type SourceType       `yaml:"type"`
-	HTTP HTTPSourceConfig `yaml:"http"`
+	Type     SourceType       `yaml:"type"`
+	AgencyID string           `yaml:"agency_id"`
+	HTTP     HTTPSourceConfig `yaml:"http"`
 	// Destinations
 	// Object Storage
 	Bucket BucketSourceConfig `yaml:"bucket"`

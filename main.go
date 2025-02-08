@@ -14,6 +14,7 @@ import (
 
 	"github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
 	"github.com/fjlanasa/tpm-go/api/v1/events"
+	"github.com/fjlanasa/tpm-go/internal/config"
 	dwell_events "github.com/fjlanasa/tpm-go/pipelines/transit/dwell_events/flow"
 	headway_events "github.com/fjlanasa/tpm-go/pipelines/transit/headway_events/flow"
 	stop_events "github.com/fjlanasa/tpm-go/pipelines/transit/stop_events/flow"
@@ -222,7 +223,14 @@ func main() {
 
 	// Create source and flows
 	go func() {
-		vpSource := flow.FanOut(vehicle_position_source.NewVehiclePositionsSource("MBTA", "https://cdn.mbta.com/realtime/VehiclePositions.pb", 1*time.Second), 2)
+		vpSource := flow.FanOut(vehicle_position_source.NewVehiclePositionsSource(ctx, config.SourceConfig{
+			Type:     config.SourceTypeHTTP,
+			AgencyID: "MBTA",
+			HTTP: config.HTTPSourceConfig{
+				URL:      "https://cdn.mbta.com/realtime/VehiclePositions.pb",
+				Interval: "1s",
+			},
+		}), 2)
 		go vpSource[0].Via(flow.NewPassThrough()).To(extension.NewChanSink(vpOutChan))
 		seSource := flow.FanOut(vpSource[1].Via(stop_events.NewStopEventFlow(ctx)), 4)
 		go seSource[0].Via(flow.NewPassThrough()).To(extension.NewChanSink(stopEventOutChan))
@@ -242,12 +250,12 @@ func main() {
 					logger.Info(
 						"VehiclePosition",
 						"event_type", "vehicle-position",
-						"route_id", vpEvent.GetRouteId(),
+						"route_id", vpEvent.GetTripId(),
 						"direction_id", vpEvent.GetDirectionId(),
 						"stop_id", vpEvent.GetStopId(),
 					)
 					eventServer.broadcast(EventWrapper{
-						AgencyId:    vpEvent.GetAgencyId(),
+						AgencyId:    "",
 						RouteId:     vpEvent.GetRouteId(),
 						DirectionId: vpEvent.GetDirectionId(),
 						StopId:      vpEvent.GetStopId(),
