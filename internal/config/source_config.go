@@ -34,6 +34,7 @@ type RedisSourceConfig struct {
 }
 
 type SourceConfig struct {
+	ID       ID               `yaml:"id"`
 	Type     SourceType       `yaml:"type"`
 	AgencyID string           `yaml:"agency_id"`
 	HTTP     HTTPSourceConfig `yaml:"http"`

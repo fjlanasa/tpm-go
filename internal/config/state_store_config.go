@@ -23,6 +23,7 @@ type RedisStateStoreConfig struct {
 }
 
 type StateStoreConfig struct {
+	ID       ID                       `yaml:"id"`
 	Type     StateStoreType           `yaml:"type"`
 	InMemory InMemoryStateStoreConfig `yaml:"in_memory"`
 	Redis    RedisStateStoreConfig    `yaml:"redis"`

@@ -66,14 +66,14 @@ pipelines:
 	if pipeline.Type != PipelineTypeVehiclePosition {
 		t.Errorf("expected pipeline type %v, got %v", PipelineTypeVehiclePosition, pipeline.Type)
 	}
-	expectedSources := []Name{"source1"}
+	expectedSources := []ID{"source1"}
 	if !reflect.DeepEqual(pipeline.Sources, expectedSources) {
 		t.Errorf("expected sources %v, got %v", expectedSources, pipeline.Sources)
 	}
 	if pipeline.StateStore != "store1" {
 		t.Errorf("expected state store %v, got %v", "store1", pipeline.StateStore)
 	}
-	expectedSinks := []Name{"sink1"}
+	expectedSinks := []ID{"sink1"}
 	if !reflect.DeepEqual(pipeline.Sinks, expectedSinks) {
 		t.Errorf("expected sinks %v, got %v", expectedSinks, pipeline.Sinks)
 	}

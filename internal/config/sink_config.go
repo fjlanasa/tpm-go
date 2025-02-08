@@ -5,6 +5,7 @@ import "time"
 type SinkType string
 
 const (
+	SinkTypeHttp       SinkType = "http"
 	SinkTypeConnector  SinkType = "connector"
 	SinkTypeConsole    SinkType = "console"
 	SinkTypeFileSystem SinkType = "file_system"
@@ -42,6 +43,7 @@ type RedisSinkConfig struct {
 }
 
 type SinkConfig struct {
+	ID             ID            `yaml:"id"`
 	Type           SinkType      `yaml:"type"`
 	MinBatchSize   int           `yaml:"min_batch_size"`
 	MaxBatchSize   int           `yaml:"max_batch_size"`

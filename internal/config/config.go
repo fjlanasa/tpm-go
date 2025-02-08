@@ -6,12 +6,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Name string
+type ID string
 
 // Connector
 
 type ConnectorConfig struct {
-	Name Name `yaml:"name"`
+	ID ID `yaml:"id"`
 }
 
 type PipelineType string
@@ -27,18 +27,19 @@ const (
 // Pipeline
 
 type PipelineConfig struct {
+	ID         string       `yaml:"id"`
 	Type       PipelineType `yaml:"type"`
-	Sources    []Name       `yaml:"sources"`
-	StateStore Name         `yaml:"state_store"`
-	Sinks      []Name       `yaml:"sinks"`
+	Sources    []ID         `yaml:"sources"`
+	StateStore ID           `yaml:"state_store"`
+	Sinks      []ID         `yaml:"sinks"`
 }
 
 type GraphConfig struct {
-	Sources     map[Name]SourceConfig     `yaml:"sources"`
-	StateStores map[Name]StateStoreConfig `yaml:"state_stores"`
-	Connectors  map[Name]ConnectorConfig  `yaml:"connectors"`
-	Sinks       map[Name]SinkConfig       `yaml:"sinks"`
-	Pipelines   []PipelineConfig          `yaml:"pipelines"`
+	Sources     map[ID]SourceConfig     `yaml:"sources"`
+	StateStores map[ID]StateStoreConfig `yaml:"state_stores"`
+	Connectors  map[ID]ConnectorConfig  `yaml:"connectors"`
+	Sinks       map[ID]SinkConfig       `yaml:"sinks"`
+	Pipelines   []PipelineConfig        `yaml:"pipelines"`
 }
 
 func ReadGraphConfig(path string) (*GraphConfig, error) {
