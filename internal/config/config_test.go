@@ -23,7 +23,8 @@ sinks:
   sink1:
     type: "test_sink"
 pipelines:
-  - type: "vehicle_position"
+  vp_pipeline:
+    type: "vehicle_position"
     sources: ["source1"]
     state_store: "store1"
     sinks: ["sink1"]
@@ -40,25 +41,10 @@ pipelines:
 	if err != nil {
 		t.Fatalf("ReadGraphConfig() error = %v", err)
 	}
-	if config == nil {
-		t.Fatal("ReadGraphConfig() returned nil config")
-	}
 
 	// Verify config contents
-	if len(config.Sources) != 1 {
-		t.Errorf("expected 1 source, got %d", len(config.Sources))
-	}
-	if len(config.StateStores) != 1 {
-		t.Errorf("expected 1 state store, got %d", len(config.StateStores))
-	}
 	if len(config.Connectors) != 1 {
 		t.Errorf("expected 1 connector, got %d", len(config.Connectors))
-	}
-	if len(config.Sinks) != 1 {
-		t.Errorf("expected 1 sink, got %d", len(config.Sinks))
-	}
-	if len(config.Pipelines) != 1 {
-		t.Errorf("expected 1 pipeline, got %d", len(config.Pipelines))
 	}
 
 	// Verify pipeline config
@@ -66,14 +52,28 @@ pipelines:
 	if pipeline.Type != PipelineTypeVehiclePosition {
 		t.Errorf("expected pipeline type %v, got %v", PipelineTypeVehiclePosition, pipeline.Type)
 	}
-	expectedSources := []ID{"source1"}
+	expectedSources := []SourceConfig{
+		{
+			ID:   "source1",
+			Type: "test_source",
+		},
+	}
 	if !reflect.DeepEqual(pipeline.Sources, expectedSources) {
 		t.Errorf("expected sources %v, got %v", expectedSources, pipeline.Sources)
 	}
-	if pipeline.StateStore != "store1" {
-		t.Errorf("expected state store %v, got %v", "store1", pipeline.StateStore)
+	expectedStateStore := StateStoreConfig{
+		ID:   "store1",
+		Type: "test_store",
 	}
-	expectedSinks := []ID{"sink1"}
+	if !reflect.DeepEqual(pipeline.StateStore, expectedStateStore) {
+		t.Errorf("expected state store %v, got %v", expectedStateStore, pipeline.StateStore)
+	}
+	expectedSinks := []SinkConfig{
+		{
+			ID:   "sink1",
+			Type: "test_sink",
+		},
+	}
 	if !reflect.DeepEqual(pipeline.Sinks, expectedSinks) {
 		t.Errorf("expected sinks %v, got %v", expectedSinks, pipeline.Sinks)
 	}
@@ -99,12 +99,9 @@ pipelines:
 }
 
 func TestReadGraphConfigInvalidPath(t *testing.T) {
-	config, err := ReadGraphConfig("nonexistent.yaml")
+	_, err := ReadGraphConfig("nonexistent.yaml")
 	if err == nil {
 		t.Error("ReadConfig() error = nil, want error")
-	}
-	if config != nil {
-		t.Errorf("ReadConfig() config = %v, want nil", config)
 	}
 }
 
@@ -129,11 +126,8 @@ pipelines:
 		t.Fatal(err)
 	}
 
-	config, err := ReadGraphConfig(tmpfile.Name())
+	_, err = ReadGraphConfig(tmpfile.Name())
 	if err == nil {
 		t.Error("ReadConfig() error = nil, want error")
-	}
-	if config != nil {
-		t.Errorf("ReadConfig() config = %v, want nil", config)
 	}
 }

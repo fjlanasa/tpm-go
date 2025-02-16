@@ -7,32 +7,32 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type InMemoryState[K comparable, T proto.Message] struct {
-	msg        T
+type InMemoryState struct {
+	msg        proto.Message
 	ttl        time.Duration
 	expiration time.Time
 }
 
-type InMemoryStateStore[T proto.Message] struct {
+type InMemoryStateStore struct {
 	ttl    time.Duration
-	states map[string]*InMemoryState[string, T]
-	new    func() T
+	states map[string]*InMemoryState
+	new    func() proto.Message
 }
 
-func NewInMemoryStateStore[T proto.Message](config config.InMemoryStateStoreConfig, new func() T) *InMemoryStateStore[T] {
+func NewInMemoryStateStore(config config.InMemoryStateStoreConfig, new func() proto.Message) *InMemoryStateStore {
 	if config.Expiry == 0 {
 		config.Expiry = time.Hour
 	}
-	s := &InMemoryStateStore[T]{
+	s := &InMemoryStateStore{
 		ttl:    config.Expiry,
-		states: make(map[string]*InMemoryState[string, T]),
+		states: make(map[string]*InMemoryState),
 		new:    new,
 	}
 	go s.expire()
 	return s
 }
 
-func (s *InMemoryStateStore[T]) Get(key string) (T, bool) {
+func (s *InMemoryStateStore) Get(key string) (proto.Message, bool) {
 	state, ok := s.states[key]
 	if !ok || state.expiration.Before(time.Now()) {
 		return s.new(), false
@@ -40,22 +40,22 @@ func (s *InMemoryStateStore[T]) Get(key string) (T, bool) {
 	return state.msg, true
 }
 
-func (s *InMemoryStateStore[T]) Set(key string, msg T, ttl time.Duration) {
+func (s *InMemoryStateStore) Set(key string, msg proto.Message, ttl time.Duration) {
 	if ttl == 0 {
 		ttl = s.ttl
 	}
-	s.states[key] = &InMemoryState[string, T]{
+	s.states[key] = &InMemoryState{
 		msg:        msg,
 		ttl:        ttl,
 		expiration: time.Now().Add(ttl),
 	}
 }
 
-func (s *InMemoryStateStore[T]) Delete(key string) {
+func (s *InMemoryStateStore) Delete(key string) {
 	delete(s.states, key)
 }
 
-func (s *InMemoryStateStore[T]) Upsert(key string, msg T) (T, T) {
+func (s *InMemoryStateStore) Upsert(key string, msg proto.Message) (proto.Message, proto.Message) {
 	old, ok := s.Get(key)
 	if !ok {
 		s.Set(key, msg, s.ttl)
@@ -65,7 +65,7 @@ func (s *InMemoryStateStore[T]) Upsert(key string, msg T) (T, T) {
 	return old, msg
 }
 
-func (s *InMemoryStateStore[T]) expire() {
+func (s *InMemoryStateStore) expire() {
 	// try every ttl duration
 	for {
 		time.Sleep(s.ttl)

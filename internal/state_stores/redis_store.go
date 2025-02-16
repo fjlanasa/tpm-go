@@ -9,24 +9,24 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type RedisStateStore[T proto.Message] struct {
+type RedisStateStore struct {
 	ctx    context.Context
 	ttl    time.Duration
 	client *redis.Client
-	new    func() T
+	new    func() proto.Message
 }
 
-func NewRedisStateStore[T proto.Message](
+func NewRedisStateStore(
 	ctx context.Context,
 	config config.RedisStateStoreConfig,
-	new func() T,
-) StateStore[T] {
+	new func() proto.Message,
+) StateStore {
 	client := redis.NewClient(&redis.Options{
 		Addr:     config.Addr,
 		Password: config.Password,
 		DB:       config.DB,
 	})
-	return &RedisStateStore[T]{
+	return &RedisStateStore{
 		ctx:    ctx,
 		ttl:    config.Expiry,
 		client: client,
@@ -34,7 +34,7 @@ func NewRedisStateStore[T proto.Message](
 	}
 }
 
-func (s *RedisStateStore[T]) Get(key string) (T, bool) {
+func (s *RedisStateStore) Get(key string) (proto.Message, bool) {
 	msgStr, err := s.client.Get(s.ctx, key).Result()
 	if err != nil {
 		return s.new(), false
@@ -47,7 +47,7 @@ func (s *RedisStateStore[T]) Get(key string) (T, bool) {
 	return msg, true
 }
 
-func (s *RedisStateStore[T]) Set(key string, msg T, ttl time.Duration) {
+func (s *RedisStateStore) Set(key string, msg proto.Message, ttl time.Duration) {
 	if ttl == 0 {
 		ttl = s.ttl
 	}
@@ -58,11 +58,11 @@ func (s *RedisStateStore[T]) Set(key string, msg T, ttl time.Duration) {
 	s.client.Set(s.ctx, key, msgStr, ttl)
 }
 
-func (s *RedisStateStore[T]) Delete(key string) {
+func (s *RedisStateStore) Delete(key string) {
 	s.client.Del(s.ctx, key)
 }
 
-func (s *RedisStateStore[T]) Upsert(key string, msg T) (T, T) {
+func (s *RedisStateStore) Upsert(key string, msg proto.Message) (proto.Message, proto.Message) {
 	oldMsg, _ := s.Get(key)
 	s.Set(key, msg, s.ttl)
 	return oldMsg, msg

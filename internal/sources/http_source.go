@@ -26,7 +26,7 @@ type HttpSource[T proto.Message] struct {
 }
 
 func NewHttpSource[T proto.Message](ctx context.Context, cfg config.HTTPSourceConfig, newResponse func() T) *HttpSource[T] {
-	source := &HttpSource[T]{ctx: ctx, cfg: cfg, client: http.DefaultClient, newResponse: newResponse, out: make(chan any)}
+	source := &HttpSource[T]{ctx: ctx, cfg: cfg, client: http.DefaultClient, out: make(chan any), newResponse: newResponse}
 	go source.init()
 	return source
 }

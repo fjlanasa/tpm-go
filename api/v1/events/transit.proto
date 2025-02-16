@@ -2,9 +2,18 @@ syntax = "proto3";
 
 package transit.events;
 
+import "third_party/gtfs/gtfs-realtime.proto";  // Import the official GTFS proto
 import "google/protobuf/timestamp.proto";
-
 option go_package = "github.com/fjlanasa/tpm-go/api/v1/events";
+
+message FeedMessageEvent {
+  string agency_id = 1;
+  transit_realtime.FeedMessage feed_message = 2;
+}
+
+message FeedMessageEventCollection {
+  repeated FeedMessageEvent feed_message_events = 1;
+}
 
 enum StopStatus {
   UNKNOWN = 0;

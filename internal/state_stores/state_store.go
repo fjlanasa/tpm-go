@@ -8,16 +8,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type StateStore[T proto.Message] interface {
-	Get(key string) (T, bool)
-	Set(key string, msg T, ttl time.Duration)
-	Upsert(key string, msg T) (T, T)
+type StateStore interface {
+	Get(key string) (proto.Message, bool)
+	Set(key string, msg proto.Message, ttl time.Duration)
+	Upsert(key string, msg proto.Message) (proto.Message, proto.Message)
 	Delete(key string)
 }
 
-func NewStateStore[T proto.Message](ctx context.Context, cfg config.StateStoreConfig, new func() T) StateStore[T] {
+func NewStateStore(ctx context.Context, cfg config.StateStoreConfig, new func() proto.Message) StateStore {
 	if cfg.Type == config.RedisStateStoreType {
-		return NewRedisStateStore[T](ctx, cfg.Redis, new)
+		return NewRedisStateStore(ctx, cfg.Redis, new)
 	}
-	return NewInMemoryStateStore[T](cfg.InMemory, new)
+	return NewInMemoryStateStore(cfg.InMemory, new)
 }

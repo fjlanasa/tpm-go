@@ -1,7 +1,13 @@
 .PHONY: generate test
 
 generate:
-	protoc --go_out=. --go_opt=paths=source_relative api/v1/events/transit.proto
+	protoc \
+		--proto_path=. \
+		--proto_path=third_party \
+		--go_out=. \
+		--go_opt=paths=source_relative \
+		--go_opt=Mthird_party/gtfs/gtfs-realtime.proto=github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs \
+		api/v1/events/transit.proto
 
 generate-openapi:
 	protoc --openapi_out=./api/v1/events/ api/v1/events/transit.proto
