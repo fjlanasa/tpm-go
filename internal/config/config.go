@@ -58,10 +58,12 @@ type MaterializedGraphConfig struct {
 }
 
 func (c *GraphConfig) Materialize() MaterializedGraphConfig {
-	materializedConfig := MaterializedGraphConfig{
-		Connectors: c.Connectors,
-		Pipelines:  []MaterializedPipelineConfig{},
+	connectors := map[ID]ConnectorConfig{}
+	for connectorID, connector := range c.Connectors {
+		connector.ID = connectorID
+		connectors[connectorID] = connector
 	}
+	pipelines := []MaterializedPipelineConfig{}
 	for pipelineID, pipeline := range c.Pipelines {
 		sources := []SourceConfig{}
 		for _, sourceID := range pipeline.Sources {
@@ -86,7 +88,7 @@ func (c *GraphConfig) Materialize() MaterializedGraphConfig {
 			panic(fmt.Sprintf("state store %s not found", pipeline.StateStore))
 		}
 		stateStore.ID = pipeline.StateStore
-		materializedConfig.Pipelines = append(materializedConfig.Pipelines, MaterializedPipelineConfig{
+		pipelines = append(pipelines, MaterializedPipelineConfig{
 			ID:         pipelineID,
 			Type:       pipeline.Type,
 			Sources:    sources,
@@ -94,7 +96,10 @@ func (c *GraphConfig) Materialize() MaterializedGraphConfig {
 			Sinks:      sinks,
 		})
 	}
-	return materializedConfig
+	return MaterializedGraphConfig{
+		Connectors: connectors,
+		Pipelines:  pipelines,
+	}
 }
 
 func ReadGraphConfig(path string) (MaterializedGraphConfig, error) {
