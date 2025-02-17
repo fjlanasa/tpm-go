@@ -27,20 +27,20 @@ func main() {
 
 	go func() {
 		graph, err := pipelines.NewGraph(ctx, config.GraphConfig{
-			Connectors: map[config.ID]config.ConnectorConfig{
-				"vp-connector": {
+			Connectors: []config.ConnectorConfig{
+				{
 					ID: "vp-connector",
 				},
-				"se-connector": {
+				{
 					ID: "se-connector",
 				},
-				"dwell-connector": {
+				{
 					ID: "dwell-connector",
 				},
-				"headway-connector": {
+				{
 					ID: "headway-connector",
 				},
-				"travel-time-connector": {
+				{
 					ID: "travel-time-connector",
 				},
 			},

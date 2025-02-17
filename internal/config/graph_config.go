@@ -49,21 +49,20 @@ type PipelineConfig struct {
 type GraphConfigYaml struct {
 	Sources     map[ID]SourceConfig       `yaml:"sources"`
 	StateStores map[ID]StateStoreConfig   `yaml:"state_stores"`
-	Connectors  map[ID]ConnectorConfig    `yaml:"connectors"`
+	Connectors  map[ID]interface{}        `yaml:"connectors"`
 	Sinks       map[ID]SinkConfig         `yaml:"sinks"`
 	Pipelines   map[ID]PipelineConfigYaml `yaml:"pipelines"`
 }
 
 type GraphConfig struct {
-	Connectors map[ID]ConnectorConfig
+	Connectors []ConnectorConfig
 	Pipelines  []PipelineConfig
 }
 
 func (c *GraphConfigYaml) Materialize() GraphConfig {
-	connectors := map[ID]ConnectorConfig{}
-	for connectorID, connector := range c.Connectors {
-		connector.ID = connectorID
-		connectors[connectorID] = connector
+	connectors := []ConnectorConfig{}
+	for connectorID := range c.Connectors {
+		connectors = append(connectors, ConnectorConfig{ID: connectorID})
 	}
 	pipelines := []PipelineConfig{}
 	for pipelineID, pipeline := range c.Pipelines {
