@@ -26,7 +26,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		graph, err := pipelines.NewGraph(ctx, config.MaterializedGraphConfig{
+		graph, err := pipelines.NewGraph(ctx, config.GraphConfig{
 			Connectors: map[config.ID]config.ConnectorConfig{
 				"vp-connector": {
 					ID: "vp-connector",
@@ -44,14 +44,14 @@ func main() {
 					ID: "travel-time-connector",
 				},
 			},
-			Pipelines: []config.MaterializedPipelineConfig{
+			Pipelines: []config.PipelineConfig{
 				{
-					ID:   "feed-message-pipeline",
-					Type: config.PipelineTypeFeedMessage,
+					ID:       "feed-message-pipeline",
+					AgencyID: "MBTA",
+					Type:     config.PipelineTypeFeedMessage,
 					Sources: []config.SourceConfig{
 						{
-							AgencyID: "MBTA",
-							Type:     config.SourceTypeHTTP,
+							Type: config.SourceTypeHTTP,
 							HTTP: config.HTTPSourceConfig{
 								URL:      "https://cdn.mbta.com/realtime/VehiclePositions.pb",
 								Interval: "1s",
@@ -79,8 +79,7 @@ func main() {
 					Type: config.PipelineTypeVehiclePosition,
 					Sources: []config.SourceConfig{
 						{
-							AgencyID: "MBTA",
-							Type:     config.SourceTypeConnector,
+							Type: config.SourceTypeConnector,
 							Connector: config.ConnectorConfig{
 								ID: "vp-connector",
 							},
@@ -118,8 +117,7 @@ func main() {
 					Type: config.PipelineTypeStopEvent,
 					Sources: []config.SourceConfig{
 						{
-							AgencyID: "MBTA",
-							Type:     config.SourceTypeConnector,
+							Type: config.SourceTypeConnector,
 							Connector: config.ConnectorConfig{
 								ID: "se-connector",
 							},
@@ -171,8 +169,7 @@ func main() {
 					Type: config.PipelineTypeHeadwayEvent,
 					Sources: []config.SourceConfig{
 						{
-							AgencyID: "MBTA",
-							Type:     config.SourceTypeConnector,
+							Type: config.SourceTypeConnector,
 							Connector: config.ConnectorConfig{
 								ID: "headway-connector",
 							},
@@ -203,8 +200,7 @@ func main() {
 					Type: config.PipelineTypeDwellEvent,
 					Sources: []config.SourceConfig{
 						{
-							AgencyID: "MBTA",
-							Type:     config.SourceTypeConnector,
+							Type: config.SourceTypeConnector,
 							Connector: config.ConnectorConfig{
 								ID: "dwell-connector",
 							},
@@ -235,8 +231,7 @@ func main() {
 					Type: config.PipelineTypeTravelTime,
 					Sources: []config.SourceConfig{
 						{
-							AgencyID: "MBTA",
-							Type:     config.SourceTypeConnector,
+							Type: config.SourceTypeConnector,
 							Connector: config.ConnectorConfig{
 								ID: "travel-time-connector",
 							},

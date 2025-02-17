@@ -2,67 +2,63 @@ package feed_message_events
 
 import (
 	"context"
-	"log"
-	"net/http"
 
 	"github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/internal/config"
-	"github.com/fjlanasa/tpm-go/internal/sources"
 	"github.com/reugn/go-streams"
-	"github.com/reugn/go-streams/flow"
 )
 
-type HTTPClient interface {
-	Get(url string) (*http.Response, error)
+type FeedMessageFlow struct {
+	agencyID config.ID
+	in       chan any
+	out      chan any
 }
 
-type FeedMessageSource struct {
-	streams.Source
-	config     config.SourceConfig
-	feedSource sources.Source
-	in         chan any
-	out        chan any
-	ctx        context.Context
+func NewFeedMessageFlow(ctx context.Context, agencyID config.ID) *FeedMessageFlow {
+	flow := &FeedMessageFlow{agencyID: agencyID, in: make(chan any), out: make(chan any)}
+	go flow.doStream(ctx)
+	return flow
 }
 
-func NewFeedMessageSource(ctx context.Context, cfg config.SourceConfig) *FeedMessageSource {
-	feedSource, err := sources.NewSource(ctx, cfg, func() *gtfs.FeedMessage {
-		return &gtfs.FeedMessage{}
-	}, make(map[config.ID]chan any))
-	if err != nil {
-		log.Fatal(err)
-	}
-	source := &FeedMessageSource{ctx: ctx, config: cfg, feedSource: feedSource, out: make(chan any)}
-	go source.init()
-	return source
-}
-
-func (v *FeedMessageSource) init() {
-	feedSourceOutlet := v.feedSource.Out()
+func (f *FeedMessageFlow) doStream(ctx context.Context) {
 	for {
 		select {
-		case <-v.ctx.Done():
+		case <-ctx.Done():
 			return
-		case feed := <-feedSourceOutlet:
-			feedMessage := feed.(*gtfs.FeedMessage)
-			v.out <- &pb.FeedMessageEvent{
-				AgencyId:    v.config.AgencyID,
-				FeedMessage: feedMessage,
+		case event, ok := <-f.in:
+			if !ok {
+				close(f.out)
+				return
+			}
+			f.out <- &pb.FeedMessageEvent{
+				AgencyId:    string(f.agencyID),
+				FeedMessage: event.(*gtfs.FeedMessage),
 			}
 		}
 	}
 }
 
-func (v *FeedMessageSource) Via(operator streams.Flow) streams.Flow {
-	flow.DoStream(v, operator)
-	return operator
+func (f *FeedMessageFlow) In() chan<- any {
+	return f.in
 }
 
-func (v *FeedMessageSource) In() chan<- any {
-	return v.in
+func (f *FeedMessageFlow) Out() <-chan any {
+	return f.out
 }
 
-func (v *FeedMessageSource) Out() <-chan any {
-	return v.out
+func (f *FeedMessageFlow) Via(flow streams.Flow) streams.Flow {
+	go f.transmit(flow)
+	return flow
+}
+
+func (f *FeedMessageFlow) To(sink streams.Sink) {
+	go f.transmit(sink)
+}
+
+func (f *FeedMessageFlow) transmit(inlet streams.Inlet) {
+	for element := range f.Out() {
+		inlet.In() <- element
+	}
+	close(inlet.In())
 }

@@ -20,7 +20,10 @@ func NewHttpSink(ctx context.Context, server *event_server.EventServer) *HttpSin
 			select {
 			case <-ctx.Done():
 				return
-			case event := <-sink.in:
+			case event, ok := <-sink.in:
+				if !ok {
+					return
+				}
 				switch v := event.(type) {
 
 				case *events.VehiclePositionEvent:

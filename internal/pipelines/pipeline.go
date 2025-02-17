@@ -23,6 +23,7 @@ import (
 
 type Pipeline struct {
 	ID         config.ID
+	AgencyID   config.ID
 	Type       string
 	Sources    []sources.Source
 	StateStore state_stores.StateStore
@@ -30,17 +31,10 @@ type Pipeline struct {
 	Flow       streams.Flow
 }
 
-func NewFlow(ctx context.Context, pipelineType config.PipelineType, stateStore state_stores.StateStore) streams.Flow {
+func NewFlow(ctx context.Context, agencyID config.ID, pipelineType config.PipelineType, stateStore state_stores.StateStore) streams.Flow {
 	switch pipelineType {
 	case config.PipelineTypeFeedMessage:
-		return feed_message_events.NewFeedMessageSource(ctx, config.SourceConfig{
-			Type:     config.SourceTypeHTTP,
-			AgencyID: "MBTA",
-			HTTP: config.HTTPSourceConfig{
-				URL:      "https://cdn.mbta.com/realtime/VehiclePositions.pb",
-				Interval: "1s",
-			},
-		}).Via(flow.NewPassThrough())
+		return feed_message_events.NewFeedMessageFlow(ctx, agencyID)
 	case config.PipelineTypeVehiclePosition:
 		return vehicle_position_events.NewVehiclePositionEventFlow(ctx)
 	case config.PipelineTypeStopEvent:
@@ -57,7 +51,7 @@ func NewFlow(ctx context.Context, pipelineType config.PipelineType, stateStore s
 
 func NewPipeline(
 	ctx context.Context,
-	config config.MaterializedPipelineConfig,
+	config config.PipelineConfig,
 	newI func() proto.Message,
 	newO func() proto.Message,
 	connectors map[config.ID]chan any,
@@ -78,7 +72,7 @@ func NewPipeline(
 		sink := sinks.NewSink(ctx, sinkConfig, newO, eventServer, connectors)
 		pipelineSinks = append(pipelineSinks, sink)
 	}
-	flow := NewFlow(ctx, config.Type, stateStore)
+	flow := NewFlow(ctx, config.AgencyID, config.Type, stateStore)
 
 	return &Pipeline{
 		ID:         config.ID,
@@ -108,7 +102,7 @@ type Graph struct {
 	Pipelines []Pipeline
 }
 
-func NewGraph(ctx context.Context, cfg config.MaterializedGraphConfig) (*Graph, error) {
+func NewGraph(ctx context.Context, cfg config.GraphConfig) (*Graph, error) {
 	eventServer := event_server.NewEventServer(ctx, event_server.EventServerConfig{
 		Port: "8080",
 		Path: "/events",
@@ -118,20 +112,20 @@ func NewGraph(ctx context.Context, cfg config.MaterializedGraphConfig) (*Graph, 
 		connectors[connector.ID] = make(chan any)
 	}
 	graph := &Graph{Pipelines: []Pipeline{}}
-	for _, pipeline := range cfg.Pipelines {
-		switch pipeline.Type {
+	for _, pipelineConfig := range cfg.Pipelines {
+		switch pipelineConfig.Type {
 		case config.PipelineTypeFeedMessage:
-			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipeline, func() proto.Message { return &gtfs.FeedMessage{} }, func() proto.Message { return &pb.FeedMessageEvent{} }, connectors, eventServer))
+			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipelineConfig, func() proto.Message { return &gtfs.FeedMessage{} }, func() proto.Message { return &pb.FeedMessageEvent{} }, connectors, eventServer))
 		case config.PipelineTypeVehiclePosition:
-			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipeline, func() proto.Message { return &pb.FeedMessageEvent{} }, func() proto.Message { return &pb.VehiclePositionEvent{} }, connectors, eventServer))
+			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipelineConfig, func() proto.Message { return &pb.FeedMessageEvent{} }, func() proto.Message { return &pb.VehiclePositionEvent{} }, connectors, eventServer))
 		case config.PipelineTypeStopEvent:
-			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipeline, func() proto.Message { return &pb.VehiclePositionEvent{} }, func() proto.Message { return &pb.StopEvent{} }, connectors, eventServer))
+			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipelineConfig, func() proto.Message { return &pb.VehiclePositionEvent{} }, func() proto.Message { return &pb.StopEvent{} }, connectors, eventServer))
 		case config.PipelineTypeDwellEvent:
-			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipeline, func() proto.Message { return &pb.StopEvent{} }, func() proto.Message { return &pb.DwellTimeEvent{} }, connectors, eventServer))
+			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipelineConfig, func() proto.Message { return &pb.StopEvent{} }, func() proto.Message { return &pb.DwellTimeEvent{} }, connectors, eventServer))
 		case config.PipelineTypeHeadwayEvent:
-			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipeline, func() proto.Message { return &pb.StopEvent{} }, func() proto.Message { return &pb.HeadwayTimeEvent{} }, connectors, eventServer))
+			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipelineConfig, func() proto.Message { return &pb.StopEvent{} }, func() proto.Message { return &pb.HeadwayTimeEvent{} }, connectors, eventServer))
 		case config.PipelineTypeTravelTime:
-			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipeline, func() proto.Message { return &pb.StopEvent{} }, func() proto.Message { return &pb.TravelTimeEvent{} }, connectors, eventServer))
+			graph.Pipelines = append(graph.Pipelines, *NewPipeline(ctx, pipelineConfig, func() proto.Message { return &pb.StopEvent{} }, func() proto.Message { return &pb.TravelTimeEvent{} }, connectors, eventServer))
 		}
 	}
 	return graph, nil

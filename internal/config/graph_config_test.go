@@ -18,7 +18,6 @@ state_stores:
     type: "test_store"
 connectors:
   connector1:
-    name: "test_connector"
 sinks:
   sink1:
     type: "test_sink"

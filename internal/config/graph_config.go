@@ -28,42 +28,44 @@ const (
 
 // Pipeline
 
-type PipelineConfig struct {
+type PipelineConfigYaml struct {
 	ID         ID           `yaml:"id"`
+	AgencyID   ID           `yaml:"agency_id"`
 	Type       PipelineType `yaml:"type"`
 	Sources    []ID         `yaml:"sources"`
 	StateStore ID           `yaml:"state_store"`
 	Sinks      []ID         `yaml:"sinks"`
 }
 
-type MaterializedPipelineConfig struct {
+type PipelineConfig struct {
 	ID         ID
+	AgencyID   ID
 	Type       PipelineType
 	Sources    []SourceConfig
 	StateStore StateStoreConfig
 	Sinks      []SinkConfig
 }
 
+type GraphConfigYaml struct {
+	Sources     map[ID]SourceConfig       `yaml:"sources"`
+	StateStores map[ID]StateStoreConfig   `yaml:"state_stores"`
+	Connectors  map[ID]ConnectorConfig    `yaml:"connectors"`
+	Sinks       map[ID]SinkConfig         `yaml:"sinks"`
+	Pipelines   map[ID]PipelineConfigYaml `yaml:"pipelines"`
+}
+
 type GraphConfig struct {
-	Sources     map[ID]SourceConfig     `yaml:"sources"`
-	StateStores map[ID]StateStoreConfig `yaml:"state_stores"`
-	Connectors  map[ID]ConnectorConfig  `yaml:"connectors"`
-	Sinks       map[ID]SinkConfig       `yaml:"sinks"`
-	Pipelines   map[ID]PipelineConfig   `yaml:"pipelines"`
-}
-
-type MaterializedGraphConfig struct {
 	Connectors map[ID]ConnectorConfig
-	Pipelines  []MaterializedPipelineConfig
+	Pipelines  []PipelineConfig
 }
 
-func (c *GraphConfig) Materialize() MaterializedGraphConfig {
+func (c *GraphConfigYaml) Materialize() GraphConfig {
 	connectors := map[ID]ConnectorConfig{}
 	for connectorID, connector := range c.Connectors {
 		connector.ID = connectorID
 		connectors[connectorID] = connector
 	}
-	pipelines := []MaterializedPipelineConfig{}
+	pipelines := []PipelineConfig{}
 	for pipelineID, pipeline := range c.Pipelines {
 		sources := []SourceConfig{}
 		for _, sourceID := range pipeline.Sources {
@@ -88,7 +90,7 @@ func (c *GraphConfig) Materialize() MaterializedGraphConfig {
 			panic(fmt.Sprintf("state store %s not found", pipeline.StateStore))
 		}
 		stateStore.ID = pipeline.StateStore
-		pipelines = append(pipelines, MaterializedPipelineConfig{
+		pipelines = append(pipelines, PipelineConfig{
 			ID:         pipelineID,
 			Type:       pipeline.Type,
 			Sources:    sources,
@@ -96,21 +98,21 @@ func (c *GraphConfig) Materialize() MaterializedGraphConfig {
 			Sinks:      sinks,
 		})
 	}
-	return MaterializedGraphConfig{
+	return GraphConfig{
 		Connectors: connectors,
 		Pipelines:  pipelines,
 	}
 }
 
-func ReadGraphConfig(path string) (MaterializedGraphConfig, error) {
+func ReadGraphConfig(path string) (GraphConfig, error) {
 	yamlFile, err := os.ReadFile(path)
 	if err != nil {
-		return MaterializedGraphConfig{}, err
+		return GraphConfig{}, err
 	}
-	var config GraphConfig
+	var config GraphConfigYaml
 	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
-		return MaterializedGraphConfig{}, err
+		return GraphConfig{}, err
 	}
 	return config.Materialize(), nil
 }
