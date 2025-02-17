@@ -139,7 +139,10 @@ func (s *StopEventFlow) doStream(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case event := <-s.in:
+		case event, ok := <-s.in:
+			if !ok {
+				return
+			}
 			if vp, ok := event.(*pb.VehiclePositionEvent); ok {
 				s.process(vp)
 			}
