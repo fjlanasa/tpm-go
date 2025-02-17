@@ -2,14 +2,13 @@ package event_server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
 
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 type SubscriberId string
@@ -60,14 +59,14 @@ type EventServer struct {
 }
 
 type EventWrapper struct {
-	AgencyId          string
-	RouteId           string
-	DirectionId       uint32
-	StopId            string
-	OriginStopId      string
-	DestinationStopId string
-	EventType         string
-	Event             proto.Message
+	AgencyId          string `json:"agency_id"`
+	RouteId           string `json:"route_id"`
+	DirectionId       uint32 `json:"direction_id"`
+	StopId            string `json:"stop_id"`
+	OriginStopId      string `json:"origin_stop_id"`
+	DestinationStopId string `json:"destination_stop_id"`
+	EventType         string `json:"event_type"`
+	Event             any    `json:"event"`
 }
 
 type EventServerConfig struct {
@@ -135,7 +134,7 @@ func (es *EventServer) Broadcast(event EventWrapper) {
 			(client.Subscription.RouteID == "" || client.Subscription.RouteID == event.RouteId) &&
 			(client.Subscription.AgencyID == "" || client.Subscription.AgencyID == event.AgencyId) &&
 			(client.Subscription.EventType == "" || client.Subscription.EventType == event.EventType) {
-			client.Channel <- event.Event
+			client.Channel <- event
 		}
 	}
 }
@@ -177,8 +176,9 @@ func (es *EventServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 			var err error
 
 			switch v := event.(type) {
-			case proto.Message:
-				data, err = protojson.Marshal(v)
+			case EventWrapper:
+				// serialize to json
+				data, err = json.Marshal(v)
 			default:
 				continue
 			}
