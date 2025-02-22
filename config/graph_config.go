@@ -56,6 +56,7 @@ func (c *GraphConfigYaml) Materialize() GraphConfig {
 		stateStore.ID = pipeline.StateStore
 		pipelines = append(pipelines, PipelineConfig{
 			ID:         pipelineID,
+			AgencyID:   pipeline.AgencyID,
 			Type:       pipeline.Type,
 			Sources:    sources,
 			StateStore: stateStore,

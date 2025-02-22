@@ -52,6 +52,7 @@ func (v *VehiclePositionEventFlow) doStream(ctx context.Context) {
 			return
 		case event := <-v.in:
 			if feedMessageEvent, ok := event.(*pb.FeedMessageEvent); ok {
+				agencyId := feedMessageEvent.GetAgencyId()
 				if feedMessage := feedMessageEvent.GetFeedMessage(); feedMessage != nil {
 					for _, entity := range feedMessage.GetEntity() {
 						var status pb.StopStatus
@@ -65,7 +66,7 @@ func (v *VehiclePositionEventFlow) doStream(ctx context.Context) {
 						}
 						if entity.Vehicle != nil {
 							v.out <- &pb.VehiclePositionEvent{
-								AgencyId:      feedMessageEvent.GetAgencyId(),
+								AgencyId:      agencyId,
 								EventId:       entity.GetVehicle().GetVehicle().GetId(),
 								VehicleId:     entity.GetVehicle().GetVehicle().GetId(),
 								VehicleLabel:  entity.GetVehicle().GetVehicle().GetLabel(),
