@@ -17,6 +17,8 @@ import (
 	"github.com/reugn/go-streams/flow"
 )
 
+const defaultConfigPath = "./config/configs/default.yaml"
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -28,10 +30,13 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Get config path from command line arguments, default to "config.yaml"
-	configPath := "config.yaml"
+	// Config path precedence: ENV > CLI arg > default path
+	configPath := defaultConfigPath
 	if len(os.Args) > 1 {
 		configPath = os.Args[1]
+	}
+	if envPath := os.Getenv("CONFIG_PATH"); envPath != "" {
+		configPath = envPath
 	}
 
 	config, err := config.ReadConfig(configPath)

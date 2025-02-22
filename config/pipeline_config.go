@@ -27,6 +27,6 @@ type PipelineConfig struct {
 	AgencyID   ID
 	Type       PipelineType
 	Sources    []SourceConfig
-	StateStore StateStoreConfig
+	StateStore *StateStoreConfig
 	Sinks      []SinkConfig
 }

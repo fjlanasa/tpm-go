@@ -64,7 +64,7 @@ func NewPipeline(
 		}
 		pipelineSources = append(pipelineSources, source)
 	}
-	stateStore := state_stores.NewStateStore(ctx, config.StateStore, newI)
+	stateStore := state_stores.NewStateStore(ctx, *config.StateStore, newI)
 	pipelineSinks := []sinks.Sink{}
 	for _, sinkConfig := range config.Sinks {
 		sink := sinks.NewSink(ctx, sinkConfig, newO, connectors)

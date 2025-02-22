@@ -50,16 +50,15 @@ func (c *GraphConfigYaml) Materialize() GraphConfig {
 			sinks = append(sinks, sink)
 		}
 		stateStore, ok := c.StateStores[pipeline.StateStore]
-		if !ok {
-			panic(fmt.Sprintf("state store %s not found", pipeline.StateStore))
+		if ok {
+			stateStore.ID = pipeline.StateStore
 		}
-		stateStore.ID = pipeline.StateStore
 		pipelines = append(pipelines, PipelineConfig{
 			ID:         pipelineID,
 			AgencyID:   pipeline.AgencyID,
 			Type:       pipeline.Type,
 			Sources:    sources,
-			StateStore: stateStore,
+			StateStore: &stateStore,
 			Sinks:      sinks,
 		})
 	}
