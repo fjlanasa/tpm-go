@@ -34,7 +34,7 @@ func (e *StopEvent) GetAttributes() map[string]any {
 		"direction_id":  e.DirectionId,
 		"stop_id":       e.StopId,
 		"stop_sequence": e.StopSequence,
-		"type":          e.EventType,
+		"event_type":    e.EventType.String(),
 		"timestamp":     e.Timestamp,
 	}
 }
