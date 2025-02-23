@@ -65,7 +65,7 @@ event_server:
 	if !reflect.DeepEqual(pipeline.Sources, expectedSources) {
 		t.Errorf("expected sources %v, got %v", expectedSources, pipeline.Sources)
 	}
-	expectedStateStore := StateStoreConfig{
+	expectedStateStore := &StateStoreConfig{
 		ID:   "store1",
 		Type: "test_store",
 	}

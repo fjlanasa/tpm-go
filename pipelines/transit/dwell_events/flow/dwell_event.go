@@ -22,11 +22,11 @@ type DwellStopKey struct {
 
 func NewDwellStopKey(stopEvent *pb.StopEvent) DwellStopKey {
 	return DwellStopKey{
-		agencyId:    stopEvent.AgencyId,
-		routeId:     stopEvent.RouteId,
-		stopId:      stopEvent.StopId,
-		directionId: stopEvent.DirectionId,
-		vehicleId:   stopEvent.VehicleId,
+		agencyId:    stopEvent.GetAgencyId(),
+		routeId:     stopEvent.GetRouteId(),
+		stopId:      stopEvent.GetStopId(),
+		directionId: stopEvent.GetDirectionId(),
+		vehicleId:   stopEvent.GetVehicleId(),
 	}
 }
 

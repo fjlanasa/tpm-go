@@ -7,7 +7,7 @@ import (
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/config"
 	dwell_events "github.com/fjlanasa/tpm-go/pipelines/transit/dwell_events/flow"
-	feed_message_events "github.com/fjlanasa/tpm-go/pipelines/transit/feed_message_events/source"
+	feed_message_events "github.com/fjlanasa/tpm-go/pipelines/transit/feed_message_events/flow"
 	headway_events "github.com/fjlanasa/tpm-go/pipelines/transit/headway_events/flow"
 	stop_events "github.com/fjlanasa/tpm-go/pipelines/transit/stop_events/flow"
 	travel_time_events "github.com/fjlanasa/tpm-go/pipelines/transit/travel_time_events/flow"

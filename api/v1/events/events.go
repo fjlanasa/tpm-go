@@ -15,63 +15,64 @@ func (e *FeedMessageEvent) GetAttributes() map[string]any {
 
 func (e *VehiclePositionEvent) GetAttributes() map[string]any {
 	return map[string]any{
-		"agency_id":     e.AgencyId,
-		"route_id":      e.RouteId,
-		"trip_id":       e.TripId,
-		"direction_id":  e.DirectionId,
-		"stop_id":       e.StopId,
-		"stop_sequence": e.StopSequence,
-		"latitude":      e.Latitude,
-		"longitude":     e.Longitude,
+		"agency_id":     e.GetAgencyId(),
+		"route_id":      e.GetRouteId(),
+		"trip_id":       e.GetTripId(),
+		"direction_id":  e.GetDirectionId(),
+		"stop_id":       e.GetStopId(),
+		"stop_sequence": e.GetStopSequence(),
+		"latitude":      e.GetLatitude(),
+		"longitude":     e.GetLongitude(),
+		"timestamp":     e.GetTimestamp().AsTime().Unix(),
 	}
 }
 
 func (e *StopEvent) GetAttributes() map[string]any {
 	return map[string]any{
-		"agency_id":     e.AgencyId,
-		"route_id":      e.RouteId,
-		"trip_id":       e.TripId,
-		"direction_id":  e.DirectionId,
-		"stop_id":       e.StopId,
-		"stop_sequence": e.StopSequence,
-		"event_type":    e.EventType.String(),
-		"timestamp":     e.Timestamp,
+		"agency_id":     e.GetAgencyId(),
+		"route_id":      e.GetRouteId(),
+		"trip_id":       e.GetTripId(),
+		"direction_id":  e.GetDirectionId(),
+		"stop_id":       e.GetStopId(),
+		"stop_sequence": e.GetStopSequence(),
+		"event_type":    e.GetEventType().String(),
+		"timestamp":     e.GetTimestamp().AsTime().Unix(),
 	}
 }
 
 func (e *DwellTimeEvent) GetAttributes() map[string]any {
 	return map[string]any{
-		"agency_id":          e.AgencyId,
-		"route_id":           e.RouteId,
-		"trip_id":            e.TripId,
-		"direction_id":       e.DirectionId,
-		"stop_id":            e.StopId,
-		"stop_sequence":      e.StopSequence,
-		"dwell_time_seconds": e.DwellTimeSeconds,
-		"timestamp":          e.Timestamp,
+		"agency_id":          e.GetAgencyId(),
+		"route_id":           e.GetRouteId(),
+		"trip_id":            e.GetTripId(),
+		"direction_id":       e.GetDirectionId(),
+		"stop_id":            e.GetStopId(),
+		"stop_sequence":      e.GetStopSequence(),
+		"dwell_time_seconds": e.GetDwellTimeSeconds(),
+		"timestamp":          e.GetTimestamp().AsTime().Unix(),
 	}
 }
 
 func (e *HeadwayTimeEvent) GetAttributes() map[string]any {
 	return map[string]any{
-		"agency_id":            e.AgencyId,
-		"route_id":             e.RouteId,
-		"direction_id":         e.DirectionId,
-		"stop_id":              e.StopId,
-		"headway_time_seconds": e.HeadwayBranchSeconds,
-		"timestamp":            e.Timestamp,
+		"agency_id":            e.GetAgencyId(),
+		"route_id":             e.GetRouteId(),
+		"direction_id":         e.GetDirectionId(),
+		"stop_id":              e.GetStopId(),
+		"headway_time_seconds": e.GetHeadwayBranchSeconds(),
+		"timestamp":            e.GetTimestamp().AsTime().Unix(),
 	}
 }
 
 func (e *TravelTimeEvent) GetAttributes() map[string]any {
 	return map[string]any{
-		"agency_id":           e.AgencyId,
-		"route_id":            e.RouteId,
-		"trip_id":             e.TripId,
-		"direction_id":        e.DirectionId,
-		"origin_stop_id":      e.FromStopId,
-		"destination_stop_id": e.ToStopId,
-		"travel_time_seconds": e.TravelTimeSeconds,
-		"timestamp":           e.Timestamp,
+		"agency_id":           e.GetAgencyId(),
+		"route_id":            e.GetRouteId(),
+		"trip_id":             e.GetTripId(),
+		"direction_id":        e.GetDirectionId(),
+		"origin_stop_id":      e.GetFromStopId(),
+		"destination_stop_id": e.GetToStopId(),
+		"travel_time_seconds": e.GetTravelTimeSeconds(),
+		"timestamp":           e.GetTimestamp().AsTime().Unix(),
 	}
 }

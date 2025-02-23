@@ -15,16 +15,47 @@ import (
 	"github.com/fjlanasa/tpm-go/sinks"
 	"github.com/reugn/go-streams/extension"
 	"github.com/reugn/go-streams/flow"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	"go.opentelemetry.io/otel/sdk/log"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
 const defaultConfigPath = "./config/configs/default.yaml"
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
 	// Create context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	resource := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String("tpm-go"),
+		semconv.ServiceVersionKey.String("v0.1.0"),
+	)
+	logUrl := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	logExporter, err := otlploghttp.New(ctx,
+		otlploghttp.WithEndpoint(logUrl),
+		otlploghttp.WithInsecure(),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize exporter: %v", err))
+	}
+	lp := log.NewLoggerProvider(
+		log.WithProcessor(
+			log.NewBatchProcessor(logExporter),
+		),
+		log.WithResource(resource),
+	)
+	defer func() {
+		if err := lp.Shutdown(context.Background()); err != nil {
+			fmt.Printf("failed to shutdown logger provider: %v\n", err)
+		}
+	}()
+	logger := otelslog.NewLogger("tpm-go", otelslog.WithLoggerProvider(lp))
+	slog.SetDefault(logger)
+
+	slog.Info("Starting TPM-GO")
 
 	// Create channel for graceful shutdown
 	sigChan := make(chan os.Signal, 1)

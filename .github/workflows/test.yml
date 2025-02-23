@@ -27,8 +27,7 @@ jobs:
 
     - name: Generate Protobuf
       run: |
-        mkdir -p api/v1/events
-        protoc --go_out=. --go_opt=paths=source_relative api/v1/events/transit.proto
+        make generate
 
     - name: Get dependencies
       run: |

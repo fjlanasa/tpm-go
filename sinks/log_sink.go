@@ -2,7 +2,9 @@ package sinks
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/config"
@@ -46,12 +48,12 @@ func (s *LogSink) doSink(ctx context.Context) {
 			return
 		case msg, ok := <-s.in:
 			if !ok {
-				return
+				panic("channel closed")
 			}
 			event, ok := msg.(events.Event)
 			if !ok {
 				s.logger.Log(ctx, slog.LevelWarn, "invalid event", "event", msg)
-				continue
+				panic("invalid event")
 			}
 			var args []any
 			if attrs := event.GetAttributes(); len(attrs) > 0 {
@@ -59,7 +61,7 @@ func (s *LogSink) doSink(ctx context.Context) {
 					args = append(args, k, v)
 				}
 			}
-			s.logger.Log(ctx, s.level, "event", args...)
+			s.logger.Log(ctx, s.level, fmt.Sprintf("Event: %s", strings.TrimPrefix(fmt.Sprintf("%T", event), "*events.")), args...)
 		}
 	}
 }

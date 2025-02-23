@@ -104,8 +104,15 @@ func (s *StopEventFlow) makeStopEvent(vp *pb.VehiclePositionEvent, stopId string
 }
 
 func (s *StopEventFlow) process(event *pb.VehiclePositionEvent) {
+	if event == nil {
+		panic("nil VehiclePositionEvent")
+	}
 	if previousState, found := s.vehiclesState.Get(event.GetVehicleId()); found {
 		previous := previousState.(*pb.VehiclePositionEvent)
+		if previous == nil {
+			fmt.Printf("Warning: previous state is nil for vehicle ID: %s\n", event.GetVehicleId())
+			return
+		}
 		if previous.GetStopStatus() == event.GetStopStatus() && previous.GetStopId() == event.GetStopId() {
 			return
 		}
