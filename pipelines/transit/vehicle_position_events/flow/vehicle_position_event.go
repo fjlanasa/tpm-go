@@ -64,25 +64,26 @@ func (v *VehiclePositionEventFlow) doStream(ctx context.Context) {
 						case gtfs.VehiclePosition_INCOMING_AT.Number():
 							status = pb.StopStatus_INCOMING_AT
 						}
-						if entity.Vehicle != nil {
+						vehicle := entity.GetVehicle()
+						if vehicle != nil {
 							v.out <- &pb.VehiclePositionEvent{
 								AgencyId:      agencyId,
-								EventId:       entity.GetVehicle().GetVehicle().GetId(),
-								VehicleId:     entity.GetVehicle().GetVehicle().GetId(),
-								VehicleLabel:  entity.GetVehicle().GetVehicle().GetLabel(),
-								RouteId:       entity.GetVehicle().GetTrip().GetRouteId(),
-								TripId:        entity.GetVehicle().GetTrip().GetTripId(),
-								DirectionId:   uint32(entity.GetVehicle().GetTrip().GetDirectionId()),
-								StopId:        entity.GetVehicle().GetStopId(),
+								EventId:       vehicle.GetVehicle().GetId(),
+								VehicleId:     vehicle.GetVehicle().GetId(),
+								VehicleLabel:  vehicle.GetVehicle().GetLabel(),
+								RouteId:       vehicle.GetTrip().GetRouteId(),
+								TripId:        vehicle.GetTrip().GetTripId(),
+								DirectionId:   uint32(vehicle.GetTrip().GetDirectionId()),
+								StopId:        vehicle.GetStopId(),
 								StopStatus:    status,
-								StopSequence:  int32(entity.GetVehicle().GetCurrentStopSequence()),
-								Latitude:      float64(entity.GetVehicle().GetPosition().GetLatitude()),
-								Longitude:     float64(entity.GetVehicle().GetPosition().GetLongitude()),
-								Timestamp:     timestamppb.New(time.Unix(int64(entity.GetVehicle().GetTimestamp()), 0)),
-								ServiceDate:   entity.GetVehicle().GetTrip().GetStartDate(),
-								BranchRouteId: entity.GetVehicle().GetTrip().GetRouteId(),
-								TrunkRouteId:  entity.GetVehicle().GetTrip().GetRouteId(),
-								ParentStation: entity.GetVehicle().GetStopId(),
+								StopSequence:  int32(vehicle.GetCurrentStopSequence()),
+								Latitude:      float64(vehicle.GetPosition().GetLatitude()),
+								Longitude:     float64(vehicle.GetPosition().GetLongitude()),
+								Timestamp:     timestamppb.New(time.Unix(int64(vehicle.GetTimestamp()), 0)),
+								ServiceDate:   vehicle.GetTrip().GetStartDate(),
+								BranchRouteId: vehicle.GetTrip().GetRouteId(),
+								TrunkRouteId:  vehicle.GetTrip().GetRouteId(),
+								ParentStation: vehicle.GetStopId(),
 							}
 						}
 					}

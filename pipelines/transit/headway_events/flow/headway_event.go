@@ -75,7 +75,7 @@ func (f *HeadwayEventFlow) transmit(inlet streams.Inlet) {
 }
 
 func (f *HeadwayEventFlow) process(event *pb.StopEvent) {
-	if event == nil || event.EventType != pb.StopEvent_DEPARTURE {
+	if event == nil || event.GetEventType() != pb.StopEvent_DEPARTURE {
 		return
 	}
 

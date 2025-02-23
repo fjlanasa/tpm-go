@@ -77,15 +77,8 @@ func (f *TravelTimeEventFlow) transmit(inlet streams.Inlet) {
 }
 
 func (f *TravelTimeEventFlow) process(event *pb.StopEvent) {
-	if event == nil || event.EventType != pb.StopEvent_ARRIVAL {
+	if event == nil || event.GetEventType() != pb.StopEvent_ARRIVAL {
 		return
-	}
-
-	key := tripKey{
-		routeId:     event.GetRouteId(),
-		directionId: event.GetDirectionId(),
-		vehicleId:   event.GetVehicleId(),
-		tripId:      event.GetTripId(),
 	}
 
 	currentArrival := &pb.StopEvent{
@@ -98,29 +91,33 @@ func (f *TravelTimeEventFlow) process(event *pb.StopEvent) {
 		StopTimestamp: event.GetStopTimestamp(),
 	}
 
-	if previousArrival, found := f.tripStates.Get(key.String()); found {
-		// this should be a pb.StopEvent
-		previousArrival := previousArrival.(*pb.StopEvent)
-
-		// Calculate travel time between stops
-		travelSeconds := int32(currentArrival.GetStopTimestamp().AsTime().Sub(previousArrival.GetStopTimestamp().AsTime()).Seconds())
-
-		travelEvent := &pb.TravelTimeEvent{
-			EventId:           fmt.Sprintf("%s-%s-%d-travel", event.GetVehicleId(), event.GetStopId(), event.GetStopTimestamp().AsTime().Unix()),
-			RouteId:           event.GetRouteId(),
-			TripId:            event.GetTripId(),
-			DirectionId:       event.GetDirectionId(),
-			VehicleId:         event.GetVehicleId(),
-			FromStopId:        previousArrival.GetStopId(),
-			ToStopId:          currentArrival.GetStopId(),
-			TravelTimeSeconds: travelSeconds,
-			Timestamp:         currentArrival.GetStopTimestamp(),
-		}
-
-		f.out <- travelEvent
+	key := tripKey{
+		routeId:     event.GetRouteId(),
+		directionId: event.GetDirectionId(),
+		vehicleId:   event.GetVehicleId(),
+		tripId:      event.GetTripId(),
 	}
 
-	// Update state with current arrival
+	previousArrival, found := f.tripStates.Get(key.String())
+	if found {
+		prev := previousArrival.(*pb.StopEvent)
+		if prev.GetStopId() != currentArrival.GetStopId() {
+			travelSeconds := int32(currentArrival.GetStopTimestamp().AsTime().Sub(prev.GetStopTimestamp().AsTime()).Seconds())
+
+			f.out <- &pb.TravelTimeEvent{
+				EventId:           fmt.Sprintf("%s-%s-%d-travel", event.GetVehicleId(), event.GetStopId(), event.GetStopTimestamp().AsTime().Unix()),
+				RouteId:           event.GetRouteId(),
+				TripId:            event.GetTripId(),
+				DirectionId:       event.GetDirectionId(),
+				VehicleId:         event.GetVehicleId(),
+				FromStopId:        prev.GetStopId(),
+				ToStopId:          currentArrival.GetStopId(),
+				TravelTimeSeconds: travelSeconds,
+				Timestamp:         currentArrival.GetStopTimestamp(),
+			}
+		}
+	}
+
 	f.tripStates.Set(key.String(), currentArrival, time.Hour)
 }
 
@@ -128,6 +125,9 @@ func (f *TravelTimeEventFlow) doStream() {
 	defer close(f.out)
 
 	for event := range f.in {
+		if event == nil {
+			continue
+		}
 		if stopEvent, ok := event.(*pb.StopEvent); ok {
 			f.process(stopEvent)
 		}

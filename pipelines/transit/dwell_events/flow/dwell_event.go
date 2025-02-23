@@ -95,12 +95,9 @@ func (d *DwellEventFlow) process(event *pb.StopEvent) {
 	key := NewDwellStopKey(event)
 
 	currentState, found := d.stateStore.Get(key.String())
-	// this should be a pb.StopEvent
-	stopEvent := currentState.(*pb.StopEvent)
-
 	if found && event.GetEventType() == pb.StopEvent_DEPARTURE {
 		// Calculate dwell time
-		dwellSeconds := int32(event.GetStopTimestamp().AsTime().Sub(stopEvent.GetStopTimestamp().AsTime()).Seconds())
+		dwellSeconds := int32(event.GetStopTimestamp().AsTime().Sub(currentState.(*pb.StopEvent).GetStopTimestamp().AsTime()).Seconds())
 
 		dwellEvent := &pb.DwellTimeEvent{
 			EventId:          fmt.Sprintf("%s-%s-%d-dwell", event.GetVehicleId(), event.GetStopId(), event.GetStopTimestamp().AsTime().Unix()),

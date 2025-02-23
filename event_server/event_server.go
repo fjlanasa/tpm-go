@@ -154,7 +154,12 @@ func (es *EventServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 	defer es.Unsubscribe(client)
 
 	// Create notification channel for client disconnect
-	notify := r.Context().Done()
+	ctx := r.Context()
+	if ctx == nil {
+		http.Error(w, "Invalid request context", http.StatusInternalServerError)
+		return
+	}
+	notify := ctx.Done()
 
 	// Create flusher
 	flusher, ok := w.(http.Flusher)
