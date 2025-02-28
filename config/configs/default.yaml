@@ -1,0 +1,85 @@
+event_server:
+  port: "8080"
+  path: "/events"
+
+graph:
+  connectors:
+    feed-message-connector:
+    vp-connector:
+    se-connector:
+    headway-connector:
+    dwell-connector:
+    travel-time-connector:
+
+  sources:
+    mbta-vehicle-positions:
+      type: "http"
+      http:
+        url: "https://cdn.mbta.com/realtime/VehiclePositions.pb"
+        interval: "1s"
+
+  sinks:
+    vp-sink-console:
+      type: "console"
+      console:
+        level: "info"
+    se-sink-console:
+      type: "console"
+      console:
+        level: "info"
+    headway-sink-console:
+      type: "console"
+      console:
+        level: "info"
+    dwell-sink-console:
+      type: "console"
+      console:
+        level: "info"
+    travel-time-sink-console:
+      type: "console"
+      console:
+        level: "info"
+
+  pipelines:
+    feed-message-pipeline:
+      id: "feed-message-pipeline"
+      agency_id: "MBTA"
+      type: "feed_message"
+      sources: ["mbta-vehicle-positions"]
+      state_store: "feed-message-state-store"
+      sinks: ["feed-message-connector"]
+
+    vp-pipeline:
+      id: "vp-pipeline"
+      type: "vehicle_position"
+      sources: ["feed-message-connector"]
+      state_store: "vp-state-store"
+      sinks: ["vp-connector", "vp-sink-console"]
+
+    se-pipeline:
+      id: "se-pipeline"
+      type: "stop_event"
+      sources: ["vp-connector"]
+      state_store: "se-state-store"
+      sinks: ["headway-connector", "dwell-connector", "travel-time-connector", "se-sink-console"]
+
+    headway-pipeline:
+      id: "headway-pipeline"
+      type: "headway_event"
+      sources: ["headway-connector"]
+      state_store: "headway-state-store"
+      sinks: ["headway-sink-console"]
+
+    dwell-pipeline:
+      id: "dwell-pipeline"
+      type: "dwell_event"
+      sources: ["dwell-connector"]
+      state_store: "dwell-state-store"
+      sinks: ["dwell-sink-console"]
+
+    travel-time-pipeline:
+      id: "travel-time-pipeline"
+      type: "travel_time"
+      sources: ["travel-time-connector"]
+      state_store: "travel-time-state-store"
+      sinks: ["travel-time-sink-console"]
