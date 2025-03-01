@@ -10,7 +10,6 @@ import (
 	"github.com/fjlanasa/tpm-go/state_stores"
 	"github.com/reugn/go-streams"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type VehicleId string
@@ -75,31 +74,25 @@ func (s *StopEventFlow) makeStopEvent(vp *pb.VehiclePositionEvent, stopId string
 		return nil
 	}
 
-	vehicleID := vp.GetVehicleId()
+	vehicleID := vp.GetAttributes().GetVehicleId()
 
 	if vehicleID == "" || stopId == "" {
 		fmt.Printf("Warning: missing required fields - vehicleID: %s, stopId: %s\n", vehicleID, stopId)
 		return nil
 	}
 	return &pb.StopEvent{
-		VehicleId:      vp.GetVehicleId(),
-		StopId:         stopId,
-		EventId:        fmt.Sprintf("%s-%s-%d", vp.GetVehicleId(), stopId, vp.GetTimestamp().AsTime().Unix()),
-		VehicleLabel:   vp.GetVehicleLabel(),
-		ServiceDate:    vp.GetServiceDate(),
-		RouteId:        vp.GetRouteId(),
-		TripId:         vp.GetTripId(),
-		DirectionId:    vp.GetDirectionId(),
-		StopSequence:   int32(vp.GetStopSequence()),
-		MoveTimestamp:  timestamppb.New(vp.GetTimestamp().AsTime()),
-		StopTimestamp:  timestamppb.New(vp.GetTimestamp().AsTime()),
-		EventType:      eventType,
-		AgencyId:       vp.GetAgencyId(),
-		VehicleConsist: vp.GetVehicleConsist(),
-		BranchRouteId:  vp.GetBranchRouteId(),
-		TrunkRouteId:   vp.GetTrunkRouteId(),
-		Direction:      vp.GetDirection(),
-		ParentStation:  vp.GetParentStation(),
+		Attributes: &pb.EventAttributes{
+			AgencyId:     vp.GetAttributes().GetAgencyId(),
+			RouteId:      vp.GetAttributes().GetRouteId(),
+			StopId:       stopId,
+			DirectionId:  vp.GetAttributes().GetDirection(),
+			StopSequence: int32(vp.GetAttributes().GetStopSequence()),
+			TripId:       vp.GetAttributes().GetTripId(),
+			ServiceDate:  vp.GetAttributes().GetServiceDate(),
+			Timestamp:    vp.GetAttributes().GetTimestamp(),
+			VehicleId:    vehicleID,
+		},
+		StopEventType: eventType,
 	}
 }
 
@@ -107,33 +100,33 @@ func (s *StopEventFlow) process(event *pb.VehiclePositionEvent) {
 	if event == nil {
 		panic("nil VehiclePositionEvent")
 	}
-	if previousState, found := s.vehiclesState.Get(event.GetVehicleId()); found {
+	if previousState, found := s.vehiclesState.Get(event.GetAttributes().GetVehicleId()); found {
 		previous := previousState.(*pb.VehiclePositionEvent)
 
-		if previous.GetStopStatus() == event.GetStopStatus() && previous.GetStopId() == event.GetStopId() {
+		if previous.GetAttributes().GetStopStatus() == event.GetAttributes().GetStopStatus() && previous.GetAttributes().GetStopId() == event.GetAttributes().GetStopId() {
 			return
 		}
-		switch event.GetStopStatus() {
+		switch event.GetAttributes().GetStopStatus() {
 		case pb.StopStatus_STOPPED_AT:
-			if previous.GetStopStatus() == pb.StopStatus_IN_TRANSIT_TO || previous.GetStopStatus() == pb.StopStatus_INCOMING_AT {
+			if previous.GetAttributes().GetStopStatus() == pb.StopStatus_IN_TRANSIT_TO || previous.GetAttributes().GetStopStatus() == pb.StopStatus_INCOMING_AT {
 				// Arrival event
-				s.out <- s.makeStopEvent(event, event.GetStopId(), pb.StopEvent_ARRIVAL)
+				s.out <- s.makeStopEvent(event, event.GetAttributes().GetStopId(), pb.StopEvent_ARRIVAL)
 			}
 		case pb.StopStatus_IN_TRANSIT_TO:
-			if previous.GetStopStatus() == pb.StopStatus_STOPPED_AT {
+			if previous.GetAttributes().GetStopStatus() == pb.StopStatus_STOPPED_AT {
 				// Simple departure event - vehicle was stopped and is now in transit
-				s.out <- s.makeStopEvent(event, previous.GetStopId(), pb.StopEvent_DEPARTURE)
-			} else if previous.GetStopStatus() == pb.StopStatus_IN_TRANSIT_TO &&
-				previous.GetStopId() != event.GetStopId() {
+				s.out <- s.makeStopEvent(event, previous.GetAttributes().GetStopId(), pb.StopEvent_DEPARTURE)
+			} else if previous.GetAttributes().GetStopStatus() == pb.StopStatus_IN_TRANSIT_TO &&
+				previous.GetAttributes().GetStopId() != event.GetAttributes().GetStopId() {
 				// Vehicle changed destination while in transit
 				// First complete previous stop events
-				s.out <- s.makeStopEvent(previous, previous.GetStopId(), pb.StopEvent_ARRIVAL)
-				s.out <- s.makeStopEvent(event, previous.GetStopId(), pb.StopEvent_DEPARTURE)
+				s.out <- s.makeStopEvent(previous, previous.GetAttributes().GetStopId(), pb.StopEvent_ARRIVAL)
+				s.out <- s.makeStopEvent(event, previous.GetAttributes().GetStopId(), pb.StopEvent_DEPARTURE)
 			}
 			// Note: We don't generate events when a vehicle stays IN_TRANSIT_TO the same stop
 		}
 	}
-	s.vehiclesState.Set(event.GetVehicleId(), event, time.Hour)
+	s.vehiclesState.Set(event.GetAttributes().GetVehicleId(), event, time.Hour)
 }
 
 func (s *StopEventFlow) doStream(ctx context.Context) {

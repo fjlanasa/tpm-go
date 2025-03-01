@@ -50,17 +50,21 @@ func (s *LogSink) doSink(ctx context.Context) {
 			if !ok {
 				panic("channel closed")
 			}
-			event, ok := msg.(events.Event)
+			event := msg.(events.Event)
 			if !ok {
 				s.logger.Log(ctx, slog.LevelWarn, "invalid event", "event", msg)
 				panic("invalid event")
 			}
-			var args []any
-			if attrs := event.GetAttributes(); len(attrs) > 0 {
-				for k, v := range attrs {
+
+			args := []any{}
+			logAttrs := events.GetEventMap(event)
+
+			for k, v := range logAttrs {
+				if v != "" {
 					args = append(args, k, v)
 				}
 			}
+
 			s.logger.Log(ctx, s.level, fmt.Sprintf("Event: %s", strings.TrimPrefix(fmt.Sprintf("%T", event), "*events.")), args...)
 		}
 	}

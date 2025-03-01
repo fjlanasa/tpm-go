@@ -11,11 +11,13 @@ import (
 
 func createVehiclePosition(vehicleID, stopID, routeID string, status pb.StopStatus, timestamp int64) *pb.VehiclePositionEvent {
 	return &pb.VehiclePositionEvent{
-		VehicleId:  vehicleID,
-		StopId:     stopID,
-		RouteId:    routeID,
-		StopStatus: status,
-		Timestamp:  timestamppb.New(time.Unix(timestamp, 0)),
+		Attributes: &pb.EventAttributes{
+			VehicleId:  vehicleID,
+			StopId:     stopID,
+			RouteId:    routeID,
+			StopStatus: status,
+			Timestamp:  timestamppb.New(time.Unix(timestamp, 0)),
+		},
 	}
 }
 
@@ -33,10 +35,12 @@ func TestStopEventFlow(t *testing.T) {
 			},
 			expected: []*pb.StopEvent{
 				{
-					VehicleId: "v1",
-					StopId:    "s1",
-					RouteId:   "Red",
-					EventType: pb.StopEvent_ARRIVAL,
+					Attributes: &pb.EventAttributes{
+						VehicleId: "v1",
+						StopId:    "s1",
+						RouteId:   "Red",
+					},
+					StopEventType: pb.StopEvent_ARRIVAL,
 				},
 			},
 		},
@@ -48,10 +52,12 @@ func TestStopEventFlow(t *testing.T) {
 			},
 			expected: []*pb.StopEvent{
 				{
-					VehicleId: "v1",
-					StopId:    "s1",
-					RouteId:   "Red",
-					EventType: pb.StopEvent_DEPARTURE,
+					Attributes: &pb.EventAttributes{
+						VehicleId: "v1",
+						StopId:    "s1",
+						RouteId:   "Red",
+					},
+					StopEventType: pb.StopEvent_DEPARTURE,
 				},
 			},
 		},
@@ -63,16 +69,20 @@ func TestStopEventFlow(t *testing.T) {
 			},
 			expected: []*pb.StopEvent{
 				{
-					VehicleId: "v1",
-					StopId:    "s1",
-					RouteId:   "Red",
-					EventType: pb.StopEvent_ARRIVAL,
+					Attributes: &pb.EventAttributes{
+						VehicleId: "v1",
+						StopId:    "s1",
+						RouteId:   "Red",
+					},
+					StopEventType: pb.StopEvent_ARRIVAL,
 				},
 				{
-					VehicleId: "v1",
-					StopId:    "s1",
-					RouteId:   "Red",
-					EventType: pb.StopEvent_DEPARTURE,
+					Attributes: &pb.EventAttributes{
+						VehicleId: "v1",
+						StopId:    "s1",
+						RouteId:   "Red",
+					},
+					StopEventType: pb.StopEvent_DEPARTURE,
 				},
 			},
 		},
@@ -121,10 +131,10 @@ func TestStopEventFlow(t *testing.T) {
 					break
 				}
 				got := results[i]
-				if got.VehicleId != want.VehicleId ||
-					got.StopId != want.StopId ||
-					got.RouteId != want.RouteId ||
-					got.EventType != want.EventType {
+				if got.Attributes.VehicleId != want.Attributes.VehicleId ||
+					got.Attributes.StopId != want.Attributes.StopId ||
+					got.Attributes.RouteId != want.Attributes.RouteId ||
+					got.StopEventType != want.StopEventType {
 					t.Errorf("event %d: got %+v, want %+v", i, got, want)
 				}
 			}

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/config"
 	"github.com/google/uuid"
 )
@@ -24,27 +25,15 @@ type Subscription struct {
 	StopId            string
 	OriginStopId      string
 	DestinationStopId string
-	EventType         string
-}
-
-func NewSubscription(agencyID, routeID, stopId, originStopID, destinationStopID, eventType string) *Subscription {
-	return &Subscription{
-		AgencyID:          agencyID,
-		RouteID:           routeID,
-		StopId:            stopId,
-		OriginStopId:      originStopID,
-		DestinationStopId: destinationStopID,
-		EventType:         eventType,
-	}
 }
 
 type Subscriber struct {
 	ID           SubscriberId
 	Channel      chan any
-	Subscription *Subscription
+	Subscription map[string]string
 }
 
-func NewSubscriber(id SubscriberId, subscription *Subscription) *Subscriber {
+func NewSubscriber(id SubscriberId, subscription map[string]string) *Subscriber {
 	return &Subscriber{
 		ID:           id,
 		Channel:      make(chan any),
@@ -57,17 +46,6 @@ type EventServer struct {
 	clientsMux sync.RWMutex
 	ctx        context.Context
 	cancel     context.CancelFunc
-}
-
-type EventWrapper struct {
-	AgencyId          string `json:"agency_id"`
-	RouteId           string `json:"route_id"`
-	DirectionId       uint32 `json:"direction_id"`
-	StopId            string `json:"stop_id"`
-	OriginStopId      string `json:"origin_stop_id"`
-	DestinationStopId string `json:"destination_stop_id"`
-	EventType         string `json:"event_type"`
-	Event             any    `json:"event"`
 }
 
 func NewEventServer(ctx context.Context, cfg config.EventServerConfig) *EventServer {
@@ -104,7 +82,7 @@ func NewEventServer(ctx context.Context, cfg config.EventServerConfig) *EventSer
 	return server
 }
 
-func (es *EventServer) Subscribe(subscription *Subscription) *Subscriber {
+func (es *EventServer) Subscribe(subscription map[string]string) *Subscriber {
 	es.clientsMux.Lock()
 	defer es.clientsMux.Unlock()
 	client := NewSubscriber(NewSubscriberId(), subscription)
@@ -119,18 +97,24 @@ func (es *EventServer) Unsubscribe(client *Subscriber) {
 	close(client.Channel)
 }
 
-func (es *EventServer) Broadcast(event EventWrapper) {
+func (es *EventServer) Broadcast(event events.Event) {
 	es.clientsMux.RLock()
 	defer es.clientsMux.RUnlock()
+	eventMap := events.GetEventMap(event)
 
 	for _, client := range es.clients {
 		// Check subscription match
-		if (client.Subscription.OriginStopId == "" || client.Subscription.OriginStopId == event.OriginStopId) &&
-			(client.Subscription.DestinationStopId == "" || client.Subscription.DestinationStopId == event.DestinationStopId) &&
-			(client.Subscription.RouteID == "" || client.Subscription.RouteID == event.RouteId) &&
-			(client.Subscription.AgencyID == "" || client.Subscription.AgencyID == event.AgencyId) &&
-			(client.Subscription.EventType == "" || client.Subscription.EventType == event.EventType) {
-			client.Channel <- event
+		match := true
+		for k, v := range client.Subscription {
+			if v != eventMap[k] {
+				match = false
+				break
+			}
+		}
+		if match {
+			fmt.Println("match")
+			fmt.Println(eventMap)
+			client.Channel <- eventMap
 		}
 	}
 }
@@ -143,14 +127,13 @@ func (es *EventServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	// Create client channel
-	client := es.Subscribe(NewSubscription(
-		r.URL.Query().Get("agency_id"),
-		r.URL.Query().Get("route_id"),
-		r.URL.Query().Get("stop_id"),
-		r.URL.Query().Get("origin_stop_id"),
-		r.URL.Query().Get("destination_stop_id"),
-		r.URL.Query().Get("event_type"),
-	))
+	subscription := map[string]string{}
+
+	for k, v := range r.URL.Query() {
+		subscription[k] = v[0]
+	}
+
+	client := es.Subscribe(subscription)
 	defer es.Unsubscribe(client)
 
 	// Create notification channel for client disconnect
@@ -177,7 +160,7 @@ func (es *EventServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 			var err error
 
 			switch v := event.(type) {
-			case EventWrapper:
+			case map[string]any:
 				// serialize to json
 				data, err = json.Marshal(v)
 			default:

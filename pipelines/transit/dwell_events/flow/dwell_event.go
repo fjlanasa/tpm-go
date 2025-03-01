@@ -16,22 +16,22 @@ type DwellStopKey struct {
 	agencyId    string
 	routeId     string
 	stopId      string
-	directionId uint32
+	directionId string
 	vehicleId   string
 }
 
 func NewDwellStopKey(stopEvent *pb.StopEvent) DwellStopKey {
 	return DwellStopKey{
-		agencyId:    stopEvent.GetAgencyId(),
-		routeId:     stopEvent.GetRouteId(),
-		stopId:      stopEvent.GetStopId(),
-		directionId: stopEvent.GetDirectionId(),
-		vehicleId:   stopEvent.GetVehicleId(),
+		agencyId:    stopEvent.GetAttributes().GetAgencyId(),
+		routeId:     stopEvent.GetAttributes().GetRouteId(),
+		stopId:      stopEvent.GetAttributes().GetStopId(),
+		directionId: stopEvent.GetAttributes().GetDirectionId(),
+		vehicleId:   stopEvent.GetAttributes().GetVehicleId(),
 	}
 }
 
 func (k *DwellStopKey) String() string {
-	return fmt.Sprintf("%s-%s-%s-%d-%s", k.agencyId, k.routeId, k.stopId, k.directionId, k.vehicleId)
+	return fmt.Sprintf("%s-%s-%s-%s-%s", k.agencyId, k.routeId, k.stopId, k.directionId, k.vehicleId)
 }
 
 type DwellEventFlow struct {
@@ -95,22 +95,23 @@ func (d *DwellEventFlow) process(event *pb.StopEvent) {
 	key := NewDwellStopKey(event)
 
 	currentState, found := d.stateStore.Get(key.String())
-	if found && event.GetEventType() == pb.StopEvent_DEPARTURE {
+	if found && event.GetStopEventType() == pb.StopEvent_DEPARTURE {
 		// Calculate dwell time
-		dwellSeconds := int32(event.GetStopTimestamp().AsTime().Sub(currentState.(*pb.StopEvent).GetStopTimestamp().AsTime()).Seconds())
+		dwellSeconds := int32(event.GetAttributes().GetTimestamp().AsTime().Sub(currentState.(*pb.StopEvent).GetAttributes().GetTimestamp().AsTime()).Seconds())
 
 		dwellEvent := &pb.DwellTimeEvent{
-			EventId:          fmt.Sprintf("%s-%s-%d-dwell", event.GetVehicleId(), event.GetStopId(), event.GetStopTimestamp().AsTime().Unix()),
-			RouteId:          event.GetRouteId(),
-			StopId:           event.GetStopId(),
-			DirectionId:      event.GetDirectionId(),
-			VehicleId:        event.GetVehicleId(),
+			Attributes: &pb.EventAttributes{
+				RouteId:     event.GetAttributes().GetRouteId(),
+				StopId:      event.GetAttributes().GetStopId(),
+				DirectionId: event.GetAttributes().GetDirectionId(),
+				VehicleId:   event.GetAttributes().GetVehicleId(),
+				Timestamp:   event.GetAttributes().GetTimestamp(),
+			},
 			DwellTimeSeconds: dwellSeconds,
-			Timestamp:        event.GetStopTimestamp(),
 		}
 		d.stateStore.Delete(key.String())
 		d.out <- dwellEvent
-	} else if event.GetEventType() == pb.StopEvent_ARRIVAL {
+	} else if event.GetStopEventType() == pb.StopEvent_ARRIVAL {
 		d.stateStore.Set(key.String(), event, time.Hour)
 	}
 }

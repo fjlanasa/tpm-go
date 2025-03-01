@@ -24,56 +24,8 @@ func NewHttpSink(ctx context.Context, server *event_server.EventServer) *HttpSin
 				if !ok {
 					return
 				}
-				switch v := event.(type) {
-
-				case *events.VehiclePositionEvent:
-					server.Broadcast(event_server.EventWrapper{
-						AgencyId:    v.GetAgencyId(),
-						RouteId:     v.GetRouteId(),
-						DirectionId: v.GetDirectionId(),
-						StopId:      v.GetStopId(),
-						EventType:   "vehicle-position-event",
-						Event:       v,
-					})
-
-				case *events.StopEvent:
-					server.Broadcast(event_server.EventWrapper{
-						AgencyId:    v.GetAgencyId(),
-						RouteId:     v.GetRouteId(),
-						DirectionId: v.GetDirectionId(),
-						StopId:      v.GetStopId(),
-						EventType:   "stop-event",
-						Event:       v,
-					})
-				case *events.DwellTimeEvent:
-					server.Broadcast(event_server.EventWrapper{
-						AgencyId:    v.GetAgencyId(),
-						RouteId:     v.GetRouteId(),
-						DirectionId: v.GetDirectionId(),
-						StopId:      v.GetStopId(),
-						EventType:   "dwell-time-event",
-						Event:       v,
-					})
-				case *events.HeadwayTimeEvent:
-					server.Broadcast(event_server.EventWrapper{
-						AgencyId:    v.GetAgencyId(),
-						RouteId:     v.GetRouteId(),
-						DirectionId: v.GetDirectionId(),
-						StopId:      v.GetStopId(),
-						EventType:   "headway-time-event",
-						Event:       v,
-					})
-				case *events.TravelTimeEvent:
-					server.Broadcast(event_server.EventWrapper{
-						AgencyId:          v.GetAgencyId(),
-						RouteId:           v.GetRouteId(),
-						DirectionId:       v.GetDirectionId(),
-						StopId:            v.GetParentStation(),
-						OriginStopId:      v.GetFromStopId(),
-						DestinationStopId: v.GetToStopId(),
-						EventType:         "travel-time-event",
-						Event:             v,
-					})
+				if event, ok := event.(events.Event); ok {
+					sink.server.Broadcast(event)
 				}
 			}
 		}

@@ -14,13 +14,13 @@ import (
 
 type tripKey struct {
 	routeId     string
-	directionId uint32
+	directionId string
 	vehicleId   string
 	tripId      string
 }
 
 func (k tripKey) String() string {
-	return fmt.Sprintf("%s-%d-%s-%s", k.routeId, k.directionId, k.vehicleId, k.tripId)
+	return fmt.Sprintf("%s-%s-%s-%s", k.routeId, k.directionId, k.vehicleId, k.tripId)
 }
 
 type TravelTimeEventFlow struct {
@@ -77,43 +77,37 @@ func (f *TravelTimeEventFlow) transmit(inlet streams.Inlet) {
 }
 
 func (f *TravelTimeEventFlow) process(event *pb.StopEvent) {
-	if event == nil || event.GetEventType() != pb.StopEvent_ARRIVAL {
+	if event == nil || event.GetStopEventType() != pb.StopEvent_ARRIVAL {
 		return
 	}
 
-	currentArrival := &pb.StopEvent{
-		VehicleId:     event.GetVehicleId(),
-		TripId:        event.GetTripId(),
-		StopId:        event.GetStopId(),
-		RouteId:       event.GetRouteId(),
-		DirectionId:   event.GetDirectionId(),
-		StopSequence:  event.GetStopSequence(),
-		StopTimestamp: event.GetStopTimestamp(),
-	}
+	currentArrival := event
 
 	key := tripKey{
-		routeId:     event.GetRouteId(),
-		directionId: event.GetDirectionId(),
-		vehicleId:   event.GetVehicleId(),
-		tripId:      event.GetTripId(),
+		routeId:     event.GetAttributes().GetRouteId(),
+		directionId: event.GetAttributes().GetDirectionId(),
+		vehicleId:   event.GetAttributes().GetVehicleId(),
+		tripId:      event.GetAttributes().GetTripId(),
 	}
 
 	previousArrival, found := f.tripStates.Get(key.String())
 	if found {
 		prev := previousArrival.(*pb.StopEvent)
-		if prev.GetStopId() != currentArrival.GetStopId() {
-			travelSeconds := int32(currentArrival.GetStopTimestamp().AsTime().Sub(prev.GetStopTimestamp().AsTime()).Seconds())
+		if prev.GetAttributes().GetStopId() != currentArrival.GetAttributes().GetStopId() {
+			travelSeconds := int32(currentArrival.GetAttributes().GetTimestamp().AsTime().Sub(prev.GetAttributes().GetTimestamp().AsTime()).Seconds())
 
 			f.out <- &pb.TravelTimeEvent{
-				EventId:           fmt.Sprintf("%s-%s-%d-travel", event.GetVehicleId(), event.GetStopId(), event.GetStopTimestamp().AsTime().Unix()),
-				RouteId:           event.GetRouteId(),
-				TripId:            event.GetTripId(),
-				DirectionId:       event.GetDirectionId(),
-				VehicleId:         event.GetVehicleId(),
-				FromStopId:        prev.GetStopId(),
-				ToStopId:          currentArrival.GetStopId(),
+				Attributes: &pb.EventAttributes{
+					AgencyId:          event.GetAttributes().GetAgencyId(),
+					RouteId:           event.GetAttributes().GetRouteId(),
+					TripId:            event.GetAttributes().GetTripId(),
+					DirectionId:       event.GetAttributes().GetDirectionId(),
+					VehicleId:         event.GetAttributes().GetVehicleId(),
+					OriginStopId:      prev.GetAttributes().GetStopId(),
+					DestinationStopId: currentArrival.GetAttributes().GetStopId(),
+					Timestamp:         currentArrival.GetAttributes().GetTimestamp(),
+				},
 				TravelTimeSeconds: travelSeconds,
-				Timestamp:         currentArrival.GetStopTimestamp(),
 			}
 		}
 	}

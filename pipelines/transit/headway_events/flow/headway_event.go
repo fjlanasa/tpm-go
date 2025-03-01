@@ -15,11 +15,11 @@ import (
 type headwayStopKey struct {
 	routeId     string
 	stopId      string
-	directionId uint32
+	directionId string
 }
 
 func (k headwayStopKey) String() string {
-	return fmt.Sprintf("%s-%d-%s", k.routeId, k.directionId, k.stopId)
+	return fmt.Sprintf("%s-%s-%s", k.routeId, k.directionId, k.stopId)
 }
 
 type HeadwayEventFlow struct {
@@ -75,14 +75,14 @@ func (f *HeadwayEventFlow) transmit(inlet streams.Inlet) {
 }
 
 func (f *HeadwayEventFlow) process(event *pb.StopEvent) {
-	if event == nil || event.GetEventType() != pb.StopEvent_DEPARTURE {
+	if event == nil || event.GetStopEventType() != pb.StopEvent_DEPARTURE {
 		return
 	}
 
 	key := headwayStopKey{
-		routeId:     event.GetRouteId(),
-		stopId:      event.GetStopId(),
-		directionId: event.GetDirectionId(),
+		routeId:     event.GetAttributes().GetRouteId(),
+		stopId:      event.GetAttributes().GetStopId(),
+		directionId: event.GetAttributes().GetDirectionId(),
 	}
 
 	state, found := f.headwayStates.Get(key.String())
@@ -94,33 +94,29 @@ func (f *HeadwayEventFlow) process(event *pb.StopEvent) {
 		return
 	}
 
-	if stopEvent.GetVehicleId() == event.GetVehicleId() {
+	if stopEvent.GetAttributes().GetVehicleId() == event.GetAttributes().GetVehicleId() {
 		// Same vehicle, no headway
 		return
 	}
 
 	// Calculate headway
-	currentTime := event.GetStopTimestamp().AsTime()
-	lastTime := stopEvent.GetStopTimestamp().AsTime()
+	currentTime := event.GetAttributes().GetTimestamp().AsTime()
+	lastTime := stopEvent.GetAttributes().GetTimestamp().AsTime()
 	headwaySeconds := int32(currentTime.Sub(lastTime).Seconds())
 
 	headwayEvent := &pb.HeadwayTimeEvent{
-		AgencyId:            event.GetAgencyId(),
-		EventId:             event.GetEventId() + "-headway",
-		RouteId:             event.GetRouteId(),
-		StopId:              event.GetStopId(),
-		DirectionId:         event.GetDirectionId(),
-		LeadingVehicleId:    stopEvent.GetVehicleId(),
-		FollowingVehicleId:  event.GetVehicleId(),
-		Timestamp:           event.GetStopTimestamp(),
-		HeadwayTrunkSeconds: headwaySeconds,
-		ServiceDate:         event.GetServiceDate(),
-		BranchRouteId:       event.GetBranchRouteId(),
-		TrunkRouteId:        event.GetTrunkRouteId(),
-		Direction:           event.GetDirection(),
-		ParentStation:       event.GetParentStation(),
-		VehicleLabel:        event.GetVehicleLabel(),
-		VehicleConsist:      event.GetVehicleConsist(),
+		Attributes: &pb.EventAttributes{
+			AgencyId:    event.GetAttributes().GetAgencyId(),
+			RouteId:     event.GetAttributes().GetRouteId(),
+			StopId:      event.GetAttributes().GetStopId(),
+			DirectionId: event.GetAttributes().GetDirectionId(),
+			ServiceDate: event.GetAttributes().GetServiceDate(),
+			Timestamp:   event.GetAttributes().GetTimestamp(),
+			VehicleId:   event.GetAttributes().GetVehicleId(),
+		},
+		LeadingVehicleId:   stopEvent.GetAttributes().GetVehicleId(),
+		FollowingVehicleId: event.GetAttributes().GetVehicleId(),
+		HeadwaySeconds:     headwaySeconds,
 	}
 
 	// Update state

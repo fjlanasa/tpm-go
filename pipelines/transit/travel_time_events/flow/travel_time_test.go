@@ -9,16 +9,18 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func createTravelStopEvent(vehicleID, tripID, stopID, routeID string, directionID uint32, sequence int32, timestamp time.Time) *pb.StopEvent {
+func createTravelStopEvent(vehicleID, tripID, stopID, routeID string, directionID string, sequence int32, timestamp time.Time) *pb.StopEvent {
 	return &pb.StopEvent{
-		VehicleId:     vehicleID,
-		TripId:        tripID,
-		StopId:        stopID,
-		RouteId:       routeID,
-		DirectionId:   directionID,
-		StopSequence:  sequence,
-		EventType:     pb.StopEvent_ARRIVAL,
-		StopTimestamp: timestamppb.New(timestamp),
+		Attributes: &pb.EventAttributes{
+			VehicleId:    vehicleID,
+			TripId:       tripID,
+			StopId:       stopID,
+			RouteId:      routeID,
+			DirectionId:  directionID,
+			StopSequence: sequence,
+			Timestamp:    timestamppb.New(timestamp),
+		},
+		StopEventType: pb.StopEvent_ARRIVAL,
 	}
 }
 
@@ -31,27 +33,31 @@ func TestTravelTimeEventFlow(t *testing.T) {
 		{
 			name: "calculates travel time between consecutive stops",
 			inputs: []*pb.StopEvent{
-				createTravelStopEvent("v1", "t1", "s1", "Red", 0, 1, time.Unix(1000, 0)),
-				createTravelStopEvent("v1", "t1", "s2", "Red", 0, 2, time.Unix(1180, 0)),
-				createTravelStopEvent("v1", "t1", "s3", "Red", 0, 3, time.Unix(1360, 0)),
+				createTravelStopEvent("v1", "t1", "s1", "Red", "0", 1, time.Unix(1000, 0)),
+				createTravelStopEvent("v1", "t1", "s2", "Red", "0", 2, time.Unix(1180, 0)),
+				createTravelStopEvent("v1", "t1", "s3", "Red", "0", 3, time.Unix(1360, 0)),
 			},
 			expected: []*pb.TravelTimeEvent{
 				{
-					VehicleId:         "v1",
-					TripId:            "t1",
-					FromStopId:        "s1",
-					ToStopId:          "s2",
-					RouteId:           "Red",
-					DirectionId:       0,
+					Attributes: &pb.EventAttributes{
+						VehicleId:         "v1",
+						TripId:            "t1",
+						OriginStopId:      "s1",
+						DestinationStopId: "s2",
+						RouteId:           "Red",
+						DirectionId:       "0",
+					},
 					TravelTimeSeconds: 180,
 				},
 				{
-					VehicleId:         "v1",
-					TripId:            "t1",
-					FromStopId:        "s2",
-					ToStopId:          "s3",
-					RouteId:           "Red",
-					DirectionId:       0,
+					Attributes: &pb.EventAttributes{
+						VehicleId:         "v1",
+						TripId:            "t1",
+						OriginStopId:      "s2",
+						DestinationStopId: "s3",
+						RouteId:           "Red",
+						DirectionId:       "0",
+					},
 					TravelTimeSeconds: 180,
 				},
 			},
@@ -59,18 +65,20 @@ func TestTravelTimeEventFlow(t *testing.T) {
 		{
 			name: "handles multiple trips independently",
 			inputs: []*pb.StopEvent{
-				createTravelStopEvent("v1", "t1", "s1", "Red", 0, 1, time.Unix(1000, 0)),
-				createTravelStopEvent("v2", "t2", "s1", "Red", 0, 1, time.Unix(1060, 0)),
-				createTravelStopEvent("v1", "t1", "s2", "Red", 0, 2, time.Unix(1180, 0)),
+				createTravelStopEvent("v1", "t1", "s1", "Red", "0", 1, time.Unix(1000, 0)),
+				createTravelStopEvent("v2", "t2", "s1", "Red", "0", 1, time.Unix(1060, 0)),
+				createTravelStopEvent("v1", "t1", "s2", "Red", "0", 2, time.Unix(1180, 0)),
 			},
 			expected: []*pb.TravelTimeEvent{
 				{
-					VehicleId:         "v1",
-					TripId:            "t1",
-					FromStopId:        "s1",
-					ToStopId:          "s2",
-					RouteId:           "Red",
-					DirectionId:       0,
+					Attributes: &pb.EventAttributes{
+						VehicleId:         "v1",
+						TripId:            "t1",
+						OriginStopId:      "s1",
+						DestinationStopId: "s2",
+						RouteId:           "Red",
+						DirectionId:       "0",
+					},
 					TravelTimeSeconds: 180,
 				},
 			},
@@ -106,12 +114,12 @@ func TestTravelTimeEventFlow(t *testing.T) {
 
 			for i, want := range tt.expected {
 				got := results[i]
-				if got.VehicleId != want.VehicleId ||
-					got.TripId != want.TripId ||
-					got.FromStopId != want.FromStopId ||
-					got.ToStopId != want.ToStopId ||
-					got.RouteId != want.RouteId ||
-					got.DirectionId != want.DirectionId ||
+				if got.GetAttributes().GetVehicleId() != want.GetAttributes().GetVehicleId() ||
+					got.GetAttributes().GetTripId() != want.GetAttributes().GetTripId() ||
+					got.GetAttributes().GetOriginStopId() != want.GetAttributes().GetOriginStopId() ||
+					got.GetAttributes().GetDestinationStopId() != want.GetAttributes().GetDestinationStopId() ||
+					got.GetAttributes().GetRouteId() != want.GetAttributes().GetRouteId() ||
+					got.GetAttributes().GetDirectionId() != want.GetAttributes().GetDirectionId() ||
 					got.TravelTimeSeconds != want.TravelTimeSeconds {
 					t.Errorf("event %d:\ngot  %+v\nwant %+v", i, got, want)
 				}

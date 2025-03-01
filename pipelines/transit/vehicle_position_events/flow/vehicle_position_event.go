@@ -2,6 +2,7 @@ package pipelines
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
@@ -67,23 +68,20 @@ func (v *VehiclePositionEventFlow) doStream(ctx context.Context) {
 						vehicle := entity.GetVehicle()
 						if vehicle != nil {
 							v.out <- &pb.VehiclePositionEvent{
-								AgencyId:      agencyId,
-								EventId:       vehicle.GetVehicle().GetId(),
-								VehicleId:     vehicle.GetVehicle().GetId(),
-								VehicleLabel:  vehicle.GetVehicle().GetLabel(),
-								RouteId:       vehicle.GetTrip().GetRouteId(),
-								TripId:        vehicle.GetTrip().GetTripId(),
-								DirectionId:   uint32(vehicle.GetTrip().GetDirectionId()),
-								StopId:        vehicle.GetStopId(),
-								StopStatus:    status,
-								StopSequence:  int32(vehicle.GetCurrentStopSequence()),
-								Latitude:      float64(vehicle.GetPosition().GetLatitude()),
-								Longitude:     float64(vehicle.GetPosition().GetLongitude()),
-								Timestamp:     timestamppb.New(time.Unix(int64(vehicle.GetTimestamp()), 0)),
-								ServiceDate:   vehicle.GetTrip().GetStartDate(),
-								BranchRouteId: vehicle.GetTrip().GetRouteId(),
-								TrunkRouteId:  vehicle.GetTrip().GetRouteId(),
-								ParentStation: vehicle.GetStopId(),
+								Attributes: &pb.EventAttributes{
+									AgencyId:     agencyId,
+									VehicleId:    vehicle.GetVehicle().GetId(),
+									RouteId:      vehicle.GetTrip().GetRouteId(),
+									StopId:       vehicle.GetStopId(),
+									TripId:       vehicle.GetTrip().GetTripId(),
+									ServiceDate:  vehicle.GetTrip().GetStartDate(),
+									DirectionId:  strconv.FormatUint(uint64(vehicle.GetTrip().GetDirectionId()), 10),
+									StopSequence: int32(vehicle.GetCurrentStopSequence()),
+									StopStatus:   status,
+									Timestamp:    timestamppb.New(time.Unix(int64(vehicle.GetTimestamp()), 0)),
+								},
+								Latitude:  float64(vehicle.GetPosition().GetLatitude()),
+								Longitude: float64(vehicle.GetPosition().GetLongitude()),
 							}
 						}
 					}

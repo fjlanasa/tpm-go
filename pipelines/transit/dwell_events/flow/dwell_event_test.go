@@ -11,11 +11,15 @@ import (
 
 func createStopEvent(vehicleID, stopID, routeID string, eventType pb.StopEvent_EventType, timestamp time.Time) *pb.StopEvent {
 	return &pb.StopEvent{
-		VehicleId:     vehicleID,
-		StopId:        stopID,
-		RouteId:       routeID,
-		EventType:     eventType,
-		StopTimestamp: timestamppb.New(timestamp),
+		Attributes: &pb.EventAttributes{
+			VehicleId:   vehicleID,
+			StopId:      stopID,
+			RouteId:     routeID,
+			Timestamp:   timestamppb.New(timestamp),
+			AgencyId:    "agency1",
+			DirectionId: "0",
+		},
+		StopEventType: eventType,
 	}
 }
 
@@ -33,10 +37,12 @@ func TestDwellEventFlow(t *testing.T) {
 			},
 			expected: []*pb.DwellTimeEvent{
 				{
-					EventId:          "v1-s1-1000-dwell",
-					VehicleId:        "v1",
-					StopId:           "s1",
-					RouteId:          "Red",
+					Attributes: &pb.EventAttributes{
+						VehicleId:   "v1",
+						StopId:      "s1",
+						RouteId:     "Red",
+						DirectionId: "0",
+					},
 					DwellTimeSeconds: 60,
 				},
 			},
@@ -86,9 +92,9 @@ func TestDwellEventFlow(t *testing.T) {
 					break
 				}
 				got := results[i]
-				if got.VehicleId != want.VehicleId ||
-					got.StopId != want.StopId ||
-					got.RouteId != want.RouteId ||
+				if got.Attributes.VehicleId != want.Attributes.VehicleId ||
+					got.Attributes.StopId != want.Attributes.StopId ||
+					got.Attributes.RouteId != want.Attributes.RouteId ||
 					got.DwellTimeSeconds != want.DwellTimeSeconds {
 					t.Errorf("event %d: got %+v, want %+v", i, got, want)
 				}
