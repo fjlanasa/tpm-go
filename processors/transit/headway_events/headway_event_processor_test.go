@@ -1,4 +1,4 @@
-package pipelines
+package processors
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func createHeadwayStopEvent(vehicleID, stopID, routeID string, directionID strin
 	}
 }
 
-func TestHeadwayEventFlow(t *testing.T) {
+func TestHeadwayEventProcessor(t *testing.T) {
 	tests := []struct {
 		name     string
 		inputs   []*pb.StopEvent
@@ -127,7 +127,7 @@ func TestHeadwayEventFlow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flow := NewHeadwayEventFlow(context.Background())
+			flow := NewHeadwayEventProcessor(context.Background())
 			results := make([]*pb.HeadwayTimeEvent, 0)
 			done := make(chan bool)
 

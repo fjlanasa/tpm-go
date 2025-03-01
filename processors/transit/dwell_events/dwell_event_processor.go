@@ -1,4 +1,4 @@
-package dwell_events
+package processors
 
 import (
 	"context"
@@ -34,13 +34,13 @@ func (k *DwellStopKey) String() string {
 	return fmt.Sprintf("%s-%s-%s-%s-%s", k.agencyId, k.routeId, k.stopId, k.directionId, k.vehicleId)
 }
 
-type DwellEventFlow struct {
+type DwellEventProcessor struct {
 	in         chan any
 	out        chan any
 	stateStore state_stores.StateStore
 }
 
-func NewDwellEventFlow(ctx context.Context, stateStore ...state_stores.StateStore) *DwellEventFlow {
+func NewDwellEventProcessor(ctx context.Context, stateStore ...state_stores.StateStore) *DwellEventProcessor {
 	if len(stateStore) == 0 {
 		stateStore = []state_stores.StateStore{
 			state_stores.NewStateStore(ctx, config.StateStoreConfig{
@@ -54,7 +54,7 @@ func NewDwellEventFlow(ctx context.Context, stateStore ...state_stores.StateStor
 		}
 	}
 
-	flow := &DwellEventFlow{
+	flow := &DwellEventProcessor{
 		in:         make(chan any),
 		out:        make(chan any),
 		stateStore: stateStore[0],
@@ -64,30 +64,30 @@ func NewDwellEventFlow(ctx context.Context, stateStore ...state_stores.StateStor
 	return flow
 }
 
-func (d *DwellEventFlow) In() chan<- any {
+func (d *DwellEventProcessor) In() chan<- any {
 	return d.in
 }
 
-func (d *DwellEventFlow) Out() <-chan any {
+func (d *DwellEventProcessor) Out() <-chan any {
 	return d.out
 }
 
-func (d *DwellEventFlow) Via(flow streams.Flow) streams.Flow {
+func (d *DwellEventProcessor) Via(flow streams.Flow) streams.Flow {
 	go d.transmit(flow)
 	return flow
 }
 
-func (d *DwellEventFlow) To(sink streams.Sink) {
+func (d *DwellEventProcessor) To(sink streams.Sink) {
 	go d.transmit(sink)
 }
 
-func (d *DwellEventFlow) transmit(inlet streams.Inlet) {
+func (d *DwellEventProcessor) transmit(inlet streams.Inlet) {
 	for element := range d.Out() {
 		inlet.In() <- element
 	}
 }
 
-func (d *DwellEventFlow) process(event *pb.StopEvent) {
+func (d *DwellEventProcessor) process(event *pb.StopEvent) {
 	if event == nil {
 		return
 	}
@@ -116,7 +116,7 @@ func (d *DwellEventFlow) process(event *pb.StopEvent) {
 	}
 }
 
-func (d *DwellEventFlow) doStream() {
+func (d *DwellEventProcessor) doStream() {
 	defer close(d.out)
 
 	for event := range d.in {

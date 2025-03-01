@@ -11,7 +11,7 @@ import (
 
 	"github.com/fjlanasa/tpm-go/config"
 	"github.com/fjlanasa/tpm-go/event_server"
-	"github.com/fjlanasa/tpm-go/pipelines"
+	"github.com/fjlanasa/tpm-go/graphs"
 	"github.com/fjlanasa/tpm-go/sinks"
 	"github.com/reugn/go-streams/extension"
 	"github.com/reugn/go-streams/flow"
@@ -92,7 +92,7 @@ func main() {
 		ch := make(chan any)
 		outlet = &ch
 	}
-	graph, err := pipelines.NewGraph(ctx, *graphConfig, pipelines.WithOutlet(outlet))
+	graph, err := graphs.NewGraph(ctx, *graphConfig, graphs.WithOutlet(outlet))
 	if err != nil {
 		slog.Error("failed to create graph", "error", err)
 		os.Exit(1)

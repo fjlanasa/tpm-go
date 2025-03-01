@@ -1,4 +1,4 @@
-package dwell_events
+package processors
 
 import (
 	"context"
@@ -23,7 +23,7 @@ func createStopEvent(vehicleID, stopID, routeID string, eventType pb.StopEvent_E
 	}
 }
 
-func TestDwellEventFlow(t *testing.T) {
+func TestDwellEventProcessor(t *testing.T) {
 	tests := []struct {
 		name     string
 		inputs   []*pb.StopEvent
@@ -59,7 +59,7 @@ func TestDwellEventFlow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flow := NewDwellEventFlow(context.Background())
+			flow := NewDwellEventProcessor(context.Background())
 			results := make([]*pb.DwellTimeEvent, 0)
 			done := make(chan bool)
 

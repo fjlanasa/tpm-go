@@ -1,4 +1,4 @@
-package feed_message_events
+package processors
 
 import (
 	"context"
@@ -9,19 +9,19 @@ import (
 	"github.com/reugn/go-streams"
 )
 
-type FeedMessageFlow struct {
+type FeedMessageProcessor struct {
 	agencyID config.ID
 	in       chan any
 	out      chan any
 }
 
-func NewFeedMessageFlow(ctx context.Context, agencyID config.ID) *FeedMessageFlow {
-	flow := &FeedMessageFlow{agencyID: agencyID, in: make(chan any), out: make(chan any)}
+func NewFeedMessageProcessor(ctx context.Context, agencyID config.ID) *FeedMessageProcessor {
+	flow := &FeedMessageProcessor{agencyID: agencyID, in: make(chan any), out: make(chan any)}
 	go flow.doStream(ctx)
 	return flow
 }
 
-func (f *FeedMessageFlow) doStream(ctx context.Context) {
+func (f *FeedMessageProcessor) doStream(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -39,24 +39,24 @@ func (f *FeedMessageFlow) doStream(ctx context.Context) {
 	}
 }
 
-func (f *FeedMessageFlow) In() chan<- any {
+func (f *FeedMessageProcessor) In() chan<- any {
 	return f.in
 }
 
-func (f *FeedMessageFlow) Out() <-chan any {
+func (f *FeedMessageProcessor) Out() <-chan any {
 	return f.out
 }
 
-func (f *FeedMessageFlow) Via(flow streams.Flow) streams.Flow {
+func (f *FeedMessageProcessor) Via(flow streams.Flow) streams.Flow {
 	go f.transmit(flow)
 	return flow
 }
 
-func (f *FeedMessageFlow) To(sink streams.Sink) {
+func (f *FeedMessageProcessor) To(sink streams.Sink) {
 	go f.transmit(sink)
 }
 
-func (f *FeedMessageFlow) transmit(inlet streams.Inlet) {
+func (f *FeedMessageProcessor) transmit(inlet streams.Inlet) {
 	for element := range f.Out() {
 		inlet.In() <- element
 	}

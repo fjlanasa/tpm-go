@@ -1,4 +1,4 @@
-package stop_events
+package processors
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func createVehiclePosition(vehicleID, stopID, routeID string, status pb.StopStat
 	}
 }
 
-func TestStopEventFlow(t *testing.T) {
+func TestStopEventProcessor(t *testing.T) {
 	tests := []struct {
 		name     string
 		inputs   []*pb.VehiclePositionEvent
@@ -98,7 +98,7 @@ func TestStopEventFlow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flow := NewStopEventFlow(context.Background())
+			flow := NewStopEventProcessor(context.Background())
 			results := make([]*pb.StopEvent, 0)
 			done := make(chan bool)
 

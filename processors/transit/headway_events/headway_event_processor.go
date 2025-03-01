@@ -1,4 +1,4 @@
-package pipelines
+package processors
 
 import (
 	"context"
@@ -22,13 +22,13 @@ func (k headwayStopKey) String() string {
 	return fmt.Sprintf("%s-%s-%s", k.routeId, k.directionId, k.stopId)
 }
 
-type HeadwayEventFlow struct {
+type HeadwayEventProcessor struct {
 	in            chan any
 	out           chan any
 	headwayStates state_stores.StateStore
 }
 
-func NewHeadwayEventFlow(ctx context.Context, stateStore ...state_stores.StateStore) *HeadwayEventFlow {
+func NewHeadwayEventProcessor(ctx context.Context, stateStore ...state_stores.StateStore) *HeadwayEventProcessor {
 	if len(stateStore) == 0 {
 		stateStore = []state_stores.StateStore{
 			state_stores.NewStateStore(ctx, config.StateStoreConfig{
@@ -41,7 +41,7 @@ func NewHeadwayEventFlow(ctx context.Context, stateStore ...state_stores.StateSt
 			}),
 		}
 	}
-	flow := &HeadwayEventFlow{
+	flow := &HeadwayEventProcessor{
 		in:            make(chan any),
 		out:           make(chan any),
 		headwayStates: stateStore[0],
@@ -50,31 +50,31 @@ func NewHeadwayEventFlow(ctx context.Context, stateStore ...state_stores.StateSt
 	return flow
 }
 
-func (f *HeadwayEventFlow) In() chan<- any {
+func (f *HeadwayEventProcessor) In() chan<- any {
 	return f.in
 }
 
-func (f *HeadwayEventFlow) Out() <-chan any {
+func (f *HeadwayEventProcessor) Out() <-chan any {
 	return f.out
 }
 
-func (f *HeadwayEventFlow) Via(flow streams.Flow) streams.Flow {
+func (f *HeadwayEventProcessor) Via(flow streams.Flow) streams.Flow {
 	go f.transmit(flow)
 	return flow
 }
 
-func (f *HeadwayEventFlow) To(sink streams.Sink) {
+func (f *HeadwayEventProcessor) To(sink streams.Sink) {
 	go f.transmit(sink)
 }
 
-func (f *HeadwayEventFlow) transmit(inlet streams.Inlet) {
+func (f *HeadwayEventProcessor) transmit(inlet streams.Inlet) {
 	for element := range f.Out() {
 		inlet.In() <- element
 	}
 	close(inlet.In())
 }
 
-func (f *HeadwayEventFlow) process(event *pb.StopEvent) {
+func (f *HeadwayEventProcessor) process(event *pb.StopEvent) {
 	if event == nil || event.GetStopEventType() != pb.StopEvent_DEPARTURE {
 		return
 	}
@@ -125,7 +125,7 @@ func (f *HeadwayEventFlow) process(event *pb.StopEvent) {
 	f.out <- headwayEvent
 }
 
-func (f *HeadwayEventFlow) doStream() {
+func (f *HeadwayEventProcessor) doStream() {
 	defer close(f.out)
 
 	for event := range f.in {

@@ -1,4 +1,4 @@
-package pipelines
+package processors
 
 import (
 	"context"
@@ -11,13 +11,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type VehiclePositionEventFlow struct {
+type VehiclePositionEventProcessor struct {
 	in  chan any
 	out chan any
 }
 
-func NewVehiclePositionEventFlow(ctx context.Context) *VehiclePositionEventFlow {
-	v := &VehiclePositionEventFlow{
+func NewVehiclePositionEventProcessor(ctx context.Context) *VehiclePositionEventProcessor {
+	v := &VehiclePositionEventProcessor{
 		in:  make(chan any),
 		out: make(chan any),
 	}
@@ -27,26 +27,26 @@ func NewVehiclePositionEventFlow(ctx context.Context) *VehiclePositionEventFlow 
 	return v
 }
 
-func (v *VehiclePositionEventFlow) In() chan<- any {
+func (v *VehiclePositionEventProcessor) In() chan<- any {
 	return v.in
 }
 
-func (v *VehiclePositionEventFlow) Out() <-chan any {
+func (v *VehiclePositionEventProcessor) Out() <-chan any {
 	return v.out
 }
 
-func (v *VehiclePositionEventFlow) To(sink streams.Sink) {
+func (v *VehiclePositionEventProcessor) To(sink streams.Sink) {
 	go v.transmit(sink)
 }
 
-func (v *VehiclePositionEventFlow) transmit(inlet streams.Inlet) {
+func (v *VehiclePositionEventProcessor) transmit(inlet streams.Inlet) {
 	for element := range v.Out() {
 		inlet.In() <- element
 	}
 	close(inlet.In())
 }
 
-func (v *VehiclePositionEventFlow) doStream(ctx context.Context) {
+func (v *VehiclePositionEventProcessor) doStream(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -91,7 +91,7 @@ func (v *VehiclePositionEventFlow) doStream(ctx context.Context) {
 	}
 }
 
-func (v *VehiclePositionEventFlow) Via(flow streams.Flow) streams.Flow {
+func (v *VehiclePositionEventProcessor) Via(flow streams.Flow) streams.Flow {
 	go v.transmit(flow)
 	return flow
 }

@@ -1,4 +1,4 @@
-package pipelines
+package processors
 
 import (
 	"context"
@@ -24,7 +24,7 @@ func createTravelStopEvent(vehicleID, tripID, stopID, routeID string, directionI
 	}
 }
 
-func TestTravelTimeEventFlow(t *testing.T) {
+func TestTravelTimeEventProcessor(t *testing.T) {
 	tests := []struct {
 		name     string
 		inputs   []*pb.StopEvent
@@ -87,7 +87,7 @@ func TestTravelTimeEventFlow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flow := NewTravelTimeEventFlow(context.Background())
+			flow := NewTravelTimeEventProcessor(context.Background())
 			results := make([]*pb.TravelTimeEvent, 0)
 			done := make(chan bool)
 

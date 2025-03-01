@@ -1,4 +1,4 @@
-package stop_events
+package processors
 
 import (
 	"context"
@@ -14,13 +14,13 @@ import (
 
 type VehicleId string
 
-type StopEventFlow struct {
+type StopEventProcessor struct {
 	in            chan any
 	out           chan any
 	vehiclesState state_stores.StateStore
 }
 
-func NewStopEventFlow(ctx context.Context, state ...state_stores.StateStore) *StopEventFlow {
+func NewStopEventProcessor(ctx context.Context, state ...state_stores.StateStore) *StopEventProcessor {
 	var vehiclesState state_stores.StateStore
 	if len(state) > 0 {
 		vehiclesState = state[0]
@@ -35,7 +35,7 @@ func NewStopEventFlow(ctx context.Context, state ...state_stores.StateStore) *St
 		})
 	}
 
-	flow := &StopEventFlow{
+	flow := &StopEventProcessor{
 		in:            make(chan any),
 		out:           make(chan any),
 		vehiclesState: vehiclesState,
@@ -44,31 +44,31 @@ func NewStopEventFlow(ctx context.Context, state ...state_stores.StateStore) *St
 	return flow
 }
 
-func (s *StopEventFlow) In() chan<- any {
+func (s *StopEventProcessor) In() chan<- any {
 	return s.in
 }
 
-func (s *StopEventFlow) Out() <-chan any {
+func (s *StopEventProcessor) Out() <-chan any {
 	return s.out
 }
 
-func (s *StopEventFlow) Via(flow streams.Flow) streams.Flow {
+func (s *StopEventProcessor) Via(flow streams.Flow) streams.Flow {
 	go s.transmit(flow)
 	return flow
 }
 
-func (s *StopEventFlow) To(sink streams.Sink) {
+func (s *StopEventProcessor) To(sink streams.Sink) {
 	go s.transmit(sink)
 }
 
-func (s *StopEventFlow) transmit(inlet streams.Inlet) {
+func (s *StopEventProcessor) transmit(inlet streams.Inlet) {
 	for element := range s.Out() {
 		inlet.In() <- element
 	}
 	close(inlet.In())
 }
 
-func (s *StopEventFlow) makeStopEvent(vp *pb.VehiclePositionEvent, stopId string, eventType pb.StopEvent_EventType) *pb.StopEvent {
+func (s *StopEventProcessor) makeStopEvent(vp *pb.VehiclePositionEvent, stopId string, eventType pb.StopEvent_EventType) *pb.StopEvent {
 	if vp == nil {
 		fmt.Println("Warning: nil VehiclePosition")
 		return nil
@@ -96,7 +96,7 @@ func (s *StopEventFlow) makeStopEvent(vp *pb.VehiclePositionEvent, stopId string
 	}
 }
 
-func (s *StopEventFlow) process(event *pb.VehiclePositionEvent) {
+func (s *StopEventProcessor) process(event *pb.VehiclePositionEvent) {
 	if event == nil {
 		panic("nil VehiclePositionEvent")
 	}
@@ -129,7 +129,7 @@ func (s *StopEventFlow) process(event *pb.VehiclePositionEvent) {
 	s.vehiclesState.Set(event.GetAttributes().GetVehicleId(), event, time.Hour)
 }
 
-func (s *StopEventFlow) doStream(ctx context.Context) {
+func (s *StopEventProcessor) doStream(ctx context.Context) {
 	defer close(s.out)
 
 	for {

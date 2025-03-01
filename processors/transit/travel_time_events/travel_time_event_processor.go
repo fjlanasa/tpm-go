@@ -1,4 +1,4 @@
-package pipelines
+package processors
 
 import (
 	"context"
@@ -23,13 +23,13 @@ func (k tripKey) String() string {
 	return fmt.Sprintf("%s-%s-%s-%s", k.routeId, k.directionId, k.vehicleId, k.tripId)
 }
 
-type TravelTimeEventFlow struct {
+type TravelTimeEventProcessor struct {
 	in         chan any
 	out        chan any
 	tripStates state_stores.StateStore
 }
 
-func NewTravelTimeEventFlow(ctx context.Context, stateStore ...state_stores.StateStore) *TravelTimeEventFlow {
+func NewTravelTimeEventProcessor(ctx context.Context, stateStore ...state_stores.StateStore) *TravelTimeEventProcessor {
 	if len(stateStore) == 0 {
 		stateStore = []state_stores.StateStore{
 			state_stores.NewStateStore(ctx, config.StateStoreConfig{
@@ -43,7 +43,7 @@ func NewTravelTimeEventFlow(ctx context.Context, stateStore ...state_stores.Stat
 		}
 	}
 
-	flow := &TravelTimeEventFlow{
+	flow := &TravelTimeEventProcessor{
 		in:         make(chan any),
 		out:        make(chan any),
 		tripStates: stateStore[0],
@@ -52,31 +52,31 @@ func NewTravelTimeEventFlow(ctx context.Context, stateStore ...state_stores.Stat
 	return flow
 }
 
-func (f *TravelTimeEventFlow) In() chan<- any {
+func (f *TravelTimeEventProcessor) In() chan<- any {
 	return f.in
 }
 
-func (f *TravelTimeEventFlow) Out() <-chan any {
+func (f *TravelTimeEventProcessor) Out() <-chan any {
 	return f.out
 }
 
-func (f *TravelTimeEventFlow) Via(flow streams.Flow) streams.Flow {
+func (f *TravelTimeEventProcessor) Via(flow streams.Flow) streams.Flow {
 	go f.transmit(flow)
 	return flow
 }
 
-func (f *TravelTimeEventFlow) To(sink streams.Sink) {
+func (f *TravelTimeEventProcessor) To(sink streams.Sink) {
 	go f.transmit(sink)
 }
 
-func (f *TravelTimeEventFlow) transmit(inlet streams.Inlet) {
+func (f *TravelTimeEventProcessor) transmit(inlet streams.Inlet) {
 	for element := range f.Out() {
 		inlet.In() <- element
 	}
 	close(inlet.In())
 }
 
-func (f *TravelTimeEventFlow) process(event *pb.StopEvent) {
+func (f *TravelTimeEventProcessor) process(event *pb.StopEvent) {
 	if event == nil || event.GetStopEventType() != pb.StopEvent_ARRIVAL {
 		return
 	}
@@ -115,7 +115,7 @@ func (f *TravelTimeEventFlow) process(event *pb.StopEvent) {
 	f.tripStates.Set(key.String(), currentArrival, time.Hour)
 }
 
-func (f *TravelTimeEventFlow) doStream() {
+func (f *TravelTimeEventProcessor) doStream() {
 	defer close(f.out)
 
 	for event := range f.in {
