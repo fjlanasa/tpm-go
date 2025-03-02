@@ -13,6 +13,11 @@ graph:
       http:
         url: "https://cdn.mbta.com/realtime/VehiclePositions.pb"
         interval: "1s"
+    mta-vehicle-positions:
+      type: "http"
+      http:
+        url: "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace"
+        interval: "1s"
 
   sinks:
     console-sink:
@@ -26,12 +31,20 @@ graph:
         path: "/events"
 
   pipelines:
-    feed-message-pipeline:
-      id: "feed-message-pipeline"
+    mbta-feed-message-pipeline:
+      id: "mbta-feed-message-pipeline"
       agency_id: "MBTA"
       type: "feed_message"
       sources: ["mbta-vehicle-positions"]
-      state_store: "feed-message-state-store"
+      state_store: "mbta-feed-message-state-store"
+      sinks: ["feed-message-connector"]
+
+    mta-feed-message-pipeline:
+      id: "mta-feed-message-pipeline"
+      agency_id: "MTA"
+      type: "feed_message"
+      sources: ["mta-vehicle-positions"]
+      state_store: "mta-feed-message-state-store"
       sinks: ["feed-message-connector"]
 
     vp-pipeline:

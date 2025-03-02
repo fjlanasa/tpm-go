@@ -67,10 +67,14 @@ func (v *VehiclePositionEventProcessor) doStream(ctx context.Context) {
 						}
 						vehicle := entity.GetVehicle()
 						if vehicle != nil {
+							vehicleId := vehicle.GetVehicle().GetId()
+							if vehicleId == "" {
+								vehicleId = vehicle.GetTrip().GetTripId()
+							}
 							v.out <- &pb.VehiclePositionEvent{
 								Attributes: &pb.EventAttributes{
 									AgencyId:     agencyId,
-									VehicleId:    vehicle.GetVehicle().GetId(),
+									VehicleId:    vehicleId,
 									RouteId:      vehicle.GetTrip().GetRouteId(),
 									StopId:       vehicle.GetStopId(),
 									TripId:       vehicle.GetTrip().GetTripId(),
