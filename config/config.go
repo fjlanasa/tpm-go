@@ -10,7 +10,7 @@ type ID string
 
 type ConfigYaml struct {
 	EventServer *EventServerConfig `yaml:"event_server"`
-	Graph       *GraphConfigYaml   `yaml:"graph"`
+	Graph       *GraphConfig       `yaml:"graph"`
 }
 
 type Config struct {
@@ -28,12 +28,11 @@ func ReadConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	graph, err := config.Graph.Materialize()
 	if err != nil {
 		return nil, err
 	}
 	return &Config{
 		EventServer: config.EventServer,
-		Graph:       &graph,
+		Graph:       config.Graph,
 	}, nil
 }

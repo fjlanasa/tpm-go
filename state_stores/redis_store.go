@@ -13,13 +13,11 @@ type RedisStateStore struct {
 	ctx    context.Context
 	ttl    time.Duration
 	client *redis.Client
-	new    func() proto.Message
 }
 
 func NewRedisStateStore(
 	ctx context.Context,
 	config config.RedisStateStoreConfig,
-	new func() proto.Message,
 ) StateStore {
 	client := redis.NewClient(&redis.Options{
 		Addr:     config.Addr,
@@ -30,40 +28,33 @@ func NewRedisStateStore(
 		ctx:    ctx,
 		ttl:    config.Expiry,
 		client: client,
-		new:    new,
 	}
 }
 
-func (s *RedisStateStore) Get(key string) (proto.Message, bool) {
+func (s *RedisStateStore) Get(key string, new func() proto.Message) (proto.Message, bool) {
 	msgStr, err := s.client.Get(s.ctx, key).Result()
 	if err != nil {
-		return s.new(), false
+		return new(), false
 	}
-	msg := s.new()
+	msg := new()
 	err = proto.Unmarshal([]byte(msgStr), msg)
 	if err != nil {
-		return s.new(), false
+		return new(), false
 	}
 	return msg, true
 }
 
-func (s *RedisStateStore) Set(key string, msg proto.Message, ttl time.Duration) {
+func (s *RedisStateStore) Set(key string, msg proto.Message, ttl time.Duration) error {
 	if ttl == 0 {
 		ttl = s.ttl
 	}
 	msgStr, err := proto.Marshal(msg)
 	if err != nil {
-		return
+		return err
 	}
-	s.client.Set(s.ctx, key, msgStr, ttl)
+	return s.client.Set(s.ctx, key, msgStr, ttl).Err()
 }
 
 func (s *RedisStateStore) Delete(key string) {
 	s.client.Del(s.ctx, key)
-}
-
-func (s *RedisStateStore) Upsert(key string, msg proto.Message) (proto.Message, proto.Message) {
-	oldMsg, _ := s.Get(key)
-	s.Set(key, msg, s.ttl)
-	return oldMsg, msg
 }

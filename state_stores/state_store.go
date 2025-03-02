@@ -9,15 +9,14 @@ import (
 )
 
 type StateStore interface {
-	Get(key string) (proto.Message, bool)
-	Set(key string, msg proto.Message, ttl time.Duration)
-	Upsert(key string, msg proto.Message) (proto.Message, proto.Message)
+	Get(key string, new func() proto.Message) (proto.Message, bool)
+	Set(key string, msg proto.Message, ttl time.Duration) error
 	Delete(key string)
 }
 
-func NewStateStore(ctx context.Context, cfg config.StateStoreConfig, new func() proto.Message) StateStore {
+func NewStateStore(ctx context.Context, cfg config.StateStoreConfig) StateStore {
 	if cfg.Type == config.RedisStateStoreType {
-		return NewRedisStateStore(ctx, cfg.Redis, new)
+		return NewRedisStateStore(ctx, cfg.Redis)
 	}
-	return NewInMemoryStateStore(cfg.InMemory, new)
+	return NewInMemoryStateStore(cfg.InMemory)
 }

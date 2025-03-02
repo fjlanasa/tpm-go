@@ -13,20 +13,11 @@ const (
 
 // Pipeline
 
-type PipelineConfigYaml struct {
+type PipelineConfig struct {
 	ID         ID           `yaml:"id"`
 	AgencyID   ID           `yaml:"agency_id"`
 	Type       PipelineType `yaml:"type"`
 	Sources    []ID         `yaml:"sources"`
 	StateStore ID           `yaml:"state_store"`
 	Sinks      []ID         `yaml:"sinks"`
-}
-
-type PipelineConfig struct {
-	ID         ID
-	AgencyID   ID
-	Type       PipelineType
-	Sources    []SourceConfig
-	StateStore *StateStoreConfig
-	Sinks      []SinkConfig
 }

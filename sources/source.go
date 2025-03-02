@@ -6,17 +6,16 @@ import (
 
 	"github.com/fjlanasa/tpm-go/config"
 	"github.com/reugn/go-streams"
-	"google.golang.org/protobuf/proto"
 )
 
 type Source interface {
 	streams.Source
 }
 
-func NewSource[T proto.Message](ctx context.Context, cfg config.SourceConfig, new func() T, connectors map[config.ID]chan any) (Source, error) {
+func NewSource(ctx context.Context, cfg config.SourceConfig, connectors map[config.ID]chan any) (Source, error) {
 	switch cfg.Type {
 	case config.SourceTypeHTTP:
-		source := NewHttpSource[T](ctx, cfg.HTTP, new)
+		source := NewHttpSource(ctx, cfg.HTTP)
 		return source, nil
 	case config.SourceTypeConnector:
 		source := NewConnectorSource(ctx, cfg.Connector, connectors)

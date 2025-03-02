@@ -57,71 +57,46 @@ event_server:
 	}
 
 	// Verify pipeline config
-	pipeline := config.Graph.Pipelines[0]
+	pipeline := config.Graph.Pipelines["vp_pipeline"]
 	if pipeline.Type != PipelineTypeVehiclePosition {
 		t.Errorf("expected pipeline type %v, got %v", PipelineTypeVehiclePosition, pipeline.Type)
 	}
-	expectedSources := []SourceConfig{
-		{
-			ID:   "source1",
-			Type: "test_source",
-		},
+	expectedSources := []ID{
+		"source1",
 	}
 	if !reflect.DeepEqual(pipeline.Sources, expectedSources) {
 		t.Errorf("expected sources %v, got %v", expectedSources, pipeline.Sources)
 	}
-	expectedStateStore := &StateStoreConfig{
-		ID:   "store1",
-		Type: "test_store",
-	}
+	expectedStateStore := ID("store1")
 	if !reflect.DeepEqual(pipeline.StateStore, expectedStateStore) {
 		t.Errorf("expected state store %v, got %v", expectedStateStore, pipeline.StateStore)
 	}
-	expectedSinks := []SinkConfig{
-		{
-			ID:   "connector1",
-			Type: SinkTypeConnector,
-			Connector: ConnectorConfig{
-				ID: "connector1",
-			},
-		},
-		{
-			ID:   "sink1",
-			Type: "test_sink",
-		},
+	expectedSinks := []ID{
+		"connector1",
+		"sink1",
 	}
-	if !reflect.DeepEqual(pipeline.Sinks, expectedSinks) {
-		t.Errorf("expected sinks %v, got %v", expectedSinks, pipeline.Sinks)
+	for i, sink := range pipeline.Sinks {
+		if !reflect.DeepEqual(sink, expectedSinks[i]) {
+			t.Errorf("expected sink %v, got %v", expectedSinks[i], sink)
+		}
 	}
 
-	pipeline = config.Graph.Pipelines[1]
+	pipeline = config.Graph.Pipelines["se_pipeline"]
 	if pipeline.Type != PipelineTypeStopEvent {
 		t.Errorf("expected pipeline type %v, got %v", PipelineTypeStopEvent, pipeline.Type)
 	}
-	expectedSources = []SourceConfig{
-		{
-			ID:   "connector1",
-			Type: SourceTypeConnector,
-			Connector: ConnectorConfig{
-				ID: "connector1",
-			},
-		},
+	expectedSources = []ID{
+		"connector1",
 	}
 	if !reflect.DeepEqual(pipeline.Sources, expectedSources) {
 		t.Errorf("expected sources %v, got %v", expectedSources, pipeline.Sources)
 	}
-	expectedStateStore = &StateStoreConfig{
-		ID:   "store1",
-		Type: "test_store",
-	}
+	expectedStateStore = ID("store1")
 	if !reflect.DeepEqual(pipeline.StateStore, expectedStateStore) {
 		t.Errorf("expected state store %v, got %v", expectedStateStore, pipeline.StateStore)
 	}
-	expectedSinks = []SinkConfig{
-		{
-			ID:   "sink1",
-			Type: "test_sink",
-		},
+	expectedSinks = []ID{
+		"sink1",
 	}
 	if !reflect.DeepEqual(pipeline.Sinks, expectedSinks) {
 		t.Errorf("expected sinks %v, got %v", expectedSinks, pipeline.Sinks)

@@ -54,18 +54,26 @@ func TestVehiclePositionsSource(t *testing.T) {
 	source := NewHttpSource(context.Background(), config.HTTPSourceConfig{
 		URL:      "http://test.com",
 		Interval: "100ms",
-	}, func() *gtfs.FeedMessage {
-		return &gtfs.FeedMessage{}
 	})
 	source.SetHTTPClient(&mockHTTPClient{response: mockResponse})
 
 	// Wait for first message
 	select {
 	case msg := <-source.Out():
-		if vp, ok := msg.(*gtfs.FeedMessage); !ok {
-			t.Error("expected VehiclePosition")
-		} else if vp.GetEntity()[0].GetVehicle().GetVehicle().GetId() != "v1" {
-			t.Errorf("got vehicle ID %s, want v1", vp.GetEntity()[0].GetVehicle().GetVehicle().GetId())
+		data := msg.([]byte)
+		feed := &gtfs.FeedMessage{}
+		err := proto.Unmarshal(data, feed)
+		if err != nil {
+			t.Errorf("failed to unmarshal feed message: %v", err)
+		}
+		if feed.GetHeader().GetGtfsRealtimeVersion() != "2.0" {
+			t.Errorf("expected version 2.0, got %s", feed.GetHeader().GetGtfsRealtimeVersion())
+		}
+		if len(feed.GetEntity()) != 1 {
+			t.Errorf("expected 1 entity, got %d", len(feed.GetEntity()))
+		}
+		if feed.GetEntity()[0].GetVehicle().GetVehicle().GetId() != "v1" {
+			t.Errorf("expected vehicle id v1, got %s", feed.GetEntity()[0].GetVehicle().GetVehicle().GetId())
 		}
 	case <-time.After(200 * time.Millisecond):
 		t.Error("timeout waiting for message")

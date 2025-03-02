@@ -3,11 +3,11 @@ package graphs
 import (
 	"context"
 
-	"github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
-	pb "github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/config"
 	"github.com/fjlanasa/tpm-go/pipelines"
-	"google.golang.org/protobuf/proto"
+	"github.com/fjlanasa/tpm-go/sinks"
+	"github.com/fjlanasa/tpm-go/sources"
+	"github.com/fjlanasa/tpm-go/state_stores"
 )
 
 type Graph struct {
@@ -17,39 +17,50 @@ type Graph struct {
 
 type GraphOption func(*Graph, *map[config.ID]chan any, *config.GraphConfig)
 
-func WithOutlet(outlet *chan any) GraphOption {
-	return func(g *Graph, connectors *map[config.ID]chan any, cfg *config.GraphConfig) {
-		if outlet == nil {
-			return
-		}
-		g.outlet = outlet
-		(*connectors)["outlet"] = *outlet
-
-		// Add outlet sink to each pipeline
-		for i := range cfg.Pipelines {
-			cfg.Pipelines[i].Sinks = append(cfg.Pipelines[i].Sinks, config.SinkConfig{
-				ID:   config.ID("outlet"),
-				Type: config.SinkTypeConnector,
-				Connector: config.ConnectorConfig{
-					ID: "outlet",
-				},
-			})
-		}
-	}
-}
-
 func NewGraph(ctx context.Context, cfg config.GraphConfig, opts ...GraphOption) (*Graph, error) {
 	graph := &Graph{pipelines: []pipelines.Pipeline{}}
 	connectors := make(map[config.ID]chan any)
+
+	// Set up remaining connectors
+	for connectorId := range cfg.Connectors {
+		connectors[connectorId] = make(chan any)
+		cfg.Sources[connectorId] = config.SourceConfig{
+			Type: config.SourceTypeConnector,
+			Connector: config.ConnectorConfig{
+				ID: connectorId,
+			},
+		}
+		cfg.Sinks[connectorId] = config.SinkConfig{
+			Type: config.SinkTypeConnector,
+			Connector: config.ConnectorConfig{
+				ID: connectorId,
+			},
+		}
+	}
 
 	// Apply options
 	for _, opt := range opts {
 		opt(graph, &connectors, &cfg)
 	}
 
-	// Set up remaining connectors
-	for _, connector := range cfg.Connectors {
-		connectors[connector.ID] = make(chan any)
+	sourcesByID := make(map[config.ID]sources.Source)
+	for sourceId, source := range cfg.Sources {
+		source, err := sources.NewSource(ctx, source, connectors)
+		if err != nil {
+			return nil, err
+		}
+		sourcesByID[sourceId] = source
+	}
+
+	sinksByID := make(map[config.ID]sinks.Sink)
+
+	for sinkId, sink := range cfg.Sinks {
+		sinksByID[sinkId] = sinks.NewSink(ctx, sink, connectors)
+	}
+
+	stateStoresByID := make(map[config.ID]state_stores.StateStore)
+	for stateStoreId, stateStore := range cfg.StateStores {
+		stateStoresByID[stateStoreId] = state_stores.NewStateStore(ctx, stateStore)
 	}
 
 	for _, pipelineConfig := range cfg.Pipelines {
@@ -58,49 +69,49 @@ func NewGraph(ctx context.Context, cfg config.GraphConfig, opts ...GraphOption) 
 			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
 				ctx,
 				pipelineConfig,
-				func() proto.Message { return &gtfs.FeedMessage{} },
-				func() proto.Message { return &pb.FeedMessageEvent{} },
-				connectors,
+				sourcesByID,
+				sinksByID,
+				stateStoresByID,
 			))
 		case config.PipelineTypeVehiclePosition:
 			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
 				ctx,
 				pipelineConfig,
-				func() proto.Message { return &pb.FeedMessageEvent{} },
-				func() proto.Message { return &pb.VehiclePositionEvent{} },
-				connectors,
+				sourcesByID,
+				sinksByID,
+				stateStoresByID,
 			))
 		case config.PipelineTypeStopEvent:
 			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
 				ctx,
 				pipelineConfig,
-				func() proto.Message { return &pb.VehiclePositionEvent{} },
-				func() proto.Message { return &pb.StopEvent{} },
-				connectors,
+				sourcesByID,
+				sinksByID,
+				stateStoresByID,
 			))
 		case config.PipelineTypeDwellEvent:
 			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
 				ctx,
 				pipelineConfig,
-				func() proto.Message { return &pb.StopEvent{} },
-				func() proto.Message { return &pb.DwellTimeEvent{} },
-				connectors,
+				sourcesByID,
+				sinksByID,
+				stateStoresByID,
 			))
 		case config.PipelineTypeHeadwayEvent:
 			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
 				ctx,
 				pipelineConfig,
-				func() proto.Message { return &pb.StopEvent{} },
-				func() proto.Message { return &pb.HeadwayTimeEvent{} },
-				connectors,
+				sourcesByID,
+				sinksByID,
+				stateStoresByID,
 			))
 		case config.PipelineTypeTravelTime:
 			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
 				ctx,
 				pipelineConfig,
-				func() proto.Message { return &pb.StopEvent{} },
-				func() proto.Message { return &pb.TravelTimeEvent{} },
-				connectors,
+				sourcesByID,
+				sinksByID,
+				stateStoresByID,
 			))
 		}
 	}

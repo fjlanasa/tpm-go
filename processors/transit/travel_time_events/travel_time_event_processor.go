@@ -29,24 +29,23 @@ type TravelTimeEventProcessor struct {
 	tripStates state_stores.StateStore
 }
 
-func NewTravelTimeEventProcessor(ctx context.Context, stateStore ...state_stores.StateStore) *TravelTimeEventProcessor {
-	if len(stateStore) == 0 {
-		stateStore = []state_stores.StateStore{
-			state_stores.NewStateStore(ctx, config.StateStoreConfig{
-				Type: config.InMemoryStateStoreType,
-				InMemory: config.InMemoryStateStoreConfig{
-					Expiry: time.Hour * 2,
-				},
-			}, func() proto.Message {
-				return &pb.StopEvent{}
-			}),
-		}
+func NewTravelTimeEventProcessor(ctx context.Context, stateStore state_stores.StateStore) *TravelTimeEventProcessor {
+	var tripStates state_stores.StateStore
+	if stateStore == nil {
+		tripStates = state_stores.NewStateStore(ctx, config.StateStoreConfig{
+			Type: config.InMemoryStateStoreType,
+			InMemory: config.InMemoryStateStoreConfig{
+				Expiry: time.Hour * 2,
+			},
+		})
+	} else {
+		tripStates = stateStore
 	}
 
 	flow := &TravelTimeEventProcessor{
 		in:         make(chan any),
 		out:        make(chan any),
-		tripStates: stateStore[0],
+		tripStates: tripStates,
 	}
 	go flow.doStream()
 	return flow
@@ -90,7 +89,9 @@ func (f *TravelTimeEventProcessor) process(event *pb.StopEvent) {
 		tripId:      event.GetAttributes().GetTripId(),
 	}
 
-	previousArrival, found := f.tripStates.Get(key.String())
+	previousArrival, found := f.tripStates.Get(key.String(), func() proto.Message {
+		return &pb.StopEvent{}
+	})
 	if found {
 		prev := previousArrival.(*pb.StopEvent)
 		if prev.GetAttributes().GetStopId() != currentArrival.GetAttributes().GetStopId() {

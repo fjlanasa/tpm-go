@@ -87,7 +87,7 @@ func TestTravelTimeEventProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flow := NewTravelTimeEventProcessor(context.Background())
+			flow := NewTravelTimeEventProcessor(context.Background(), nil)
 			results := make([]*pb.TravelTimeEvent, 0)
 			done := make(chan bool)
 

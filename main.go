@@ -10,11 +10,7 @@ import (
 	"log/slog"
 
 	"github.com/fjlanasa/tpm-go/config"
-	"github.com/fjlanasa/tpm-go/event_server"
 	"github.com/fjlanasa/tpm-go/graphs"
-	"github.com/fjlanasa/tpm-go/sinks"
-	"github.com/reugn/go-streams/extension"
-	"github.com/reugn/go-streams/flow"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	"go.opentelemetry.io/otel/sdk/log"
@@ -87,23 +83,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	var outlet *chan any
-	if config.EventServer != nil {
-		ch := make(chan any)
-		outlet = &ch
-	}
-	graph, err := graphs.NewGraph(ctx, *graphConfig, graphs.WithOutlet(outlet))
+	// var outlet *chan any
+	// if config.EventServer != nil {
+	// 	ch := make(chan any)
+	// 	outlet = &ch
+	// }
+	graph, err := graphs.NewGraph(ctx, *graphConfig)
 	if err != nil {
 		slog.Error("failed to create graph", "error", err)
 		os.Exit(1)
 	}
 	go graph.Run()
-	go func() {
-		if config.EventServer != nil {
-			eventServer := event_server.NewEventServer(ctx, *config.EventServer)
-			extension.NewChanSource(*outlet).Via(flow.NewPassThrough()).To(sinks.NewHttpSink(ctx, eventServer))
-		}
-	}()
+	// go func() {
+	// 	if config.EventServer != nil {
+	// 		eventServer := event_server.NewEventServer(ctx, *config.EventServer)
+	// 		extension.NewChanSource(*outlet).Via(flow.NewPassThrough()).To(sinks.NewHttpSink(ctx, eventServer))
+	// 	}
+	// }()
 
 	// Wait for shutdown signal
 	<-sigChan

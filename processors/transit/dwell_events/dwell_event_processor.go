@@ -40,24 +40,23 @@ type DwellEventProcessor struct {
 	stateStore state_stores.StateStore
 }
 
-func NewDwellEventProcessor(ctx context.Context, stateStore ...state_stores.StateStore) *DwellEventProcessor {
-	if len(stateStore) == 0 {
-		stateStore = []state_stores.StateStore{
-			state_stores.NewStateStore(ctx, config.StateStoreConfig{
-				Type: config.InMemoryStateStoreType,
-				InMemory: config.InMemoryStateStoreConfig{
-					Expiry: time.Hour,
-				},
-			}, func() proto.Message {
-				return &pb.StopEvent{}
-			}),
-		}
+func NewDwellEventProcessor(ctx context.Context, stateStore state_stores.StateStore) *DwellEventProcessor {
+	var dwellStates state_stores.StateStore
+	if stateStore == nil {
+		dwellStates = state_stores.NewStateStore(ctx, config.StateStoreConfig{
+			Type: config.InMemoryStateStoreType,
+			InMemory: config.InMemoryStateStoreConfig{
+				Expiry: time.Hour,
+			},
+		})
+	} else {
+		dwellStates = stateStore
 	}
 
 	flow := &DwellEventProcessor{
 		in:         make(chan any),
 		out:        make(chan any),
-		stateStore: stateStore[0],
+		stateStore: dwellStates,
 	}
 
 	go flow.doStream()
@@ -94,7 +93,9 @@ func (d *DwellEventProcessor) process(event *pb.StopEvent) {
 
 	key := NewDwellStopKey(event)
 
-	currentState, found := d.stateStore.Get(key.String())
+	currentState, found := d.stateStore.Get(key.String(), func() proto.Message {
+		return &pb.StopEvent{}
+	})
 	if found && event.GetStopEventType() == pb.StopEvent_DEPARTURE {
 		// Calculate dwell time
 		dwellSeconds := int32(event.GetAttributes().GetTimestamp().AsTime().Sub(currentState.(*pb.StopEvent).GetAttributes().GetTimestamp().AsTime()).Seconds())

@@ -5,7 +5,6 @@ import (
 
 	"github.com/fjlanasa/tpm-go/config"
 	"github.com/reugn/go-streams"
-	"google.golang.org/protobuf/proto"
 )
 
 type Sink interface {
@@ -15,7 +14,6 @@ type Sink interface {
 func NewSink(
 	ctx context.Context,
 	cfg config.SinkConfig,
-	newO func() proto.Message,
 	connectors map[config.ID]chan any,
 ) Sink {
 	switch cfg.Type {

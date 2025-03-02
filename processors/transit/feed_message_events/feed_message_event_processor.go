@@ -7,6 +7,7 @@ import (
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/config"
 	"github.com/reugn/go-streams"
+	"google.golang.org/protobuf/proto"
 )
 
 type FeedMessageProcessor struct {
@@ -31,9 +32,26 @@ func (f *FeedMessageProcessor) doStream(ctx context.Context) {
 				close(f.out)
 				return
 			}
+
+			var feedMessage *gtfs.FeedMessage
+			switch v := event.(type) {
+			case []uint8:
+				msg := &gtfs.FeedMessage{}
+				if err := proto.Unmarshal(v, msg); err != nil {
+					// You might want to handle this error differently
+					continue
+				}
+				feedMessage = msg
+			case *gtfs.FeedMessage:
+				feedMessage = v
+			default:
+				// You might want to handle unknown types differently
+				continue
+			}
+
 			f.out <- &pb.FeedMessageEvent{
 				AgencyId:    string(f.agencyID),
-				FeedMessage: event.(*gtfs.FeedMessage),
+				FeedMessage: feedMessage,
 			}
 		}
 	}

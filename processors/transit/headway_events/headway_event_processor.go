@@ -28,23 +28,22 @@ type HeadwayEventProcessor struct {
 	headwayStates state_stores.StateStore
 }
 
-func NewHeadwayEventProcessor(ctx context.Context, stateStore ...state_stores.StateStore) *HeadwayEventProcessor {
-	if len(stateStore) == 0 {
-		stateStore = []state_stores.StateStore{
-			state_stores.NewStateStore(ctx, config.StateStoreConfig{
-				Type: config.InMemoryStateStoreType,
-				InMemory: config.InMemoryStateStoreConfig{
-					Expiry: time.Hour * 2,
-				},
-			}, func() proto.Message {
-				return &pb.StopEvent{}
-			}),
-		}
+func NewHeadwayEventProcessor(ctx context.Context, stateStore state_stores.StateStore) *HeadwayEventProcessor {
+	var headwayStates state_stores.StateStore
+	if stateStore == nil {
+		headwayStates = state_stores.NewStateStore(ctx, config.StateStoreConfig{
+			Type: config.InMemoryStateStoreType,
+			InMemory: config.InMemoryStateStoreConfig{
+				Expiry: time.Hour * 2,
+			},
+		})
+	} else {
+		headwayStates = stateStore
 	}
 	flow := &HeadwayEventProcessor{
 		in:            make(chan any),
 		out:           make(chan any),
-		headwayStates: stateStore[0],
+		headwayStates: headwayStates,
 	}
 	go flow.doStream()
 	return flow
@@ -85,7 +84,9 @@ func (f *HeadwayEventProcessor) process(event *pb.StopEvent) {
 		directionId: event.GetAttributes().GetDirectionId(),
 	}
 
-	state, found := f.headwayStates.Get(key.String())
+	state, found := f.headwayStates.Get(key.String(), func() proto.Message {
+		return &pb.StopEvent{}
+	})
 	// this should be a pb.StopEvent
 	stopEvent := state.(*pb.StopEvent)
 	if !found {

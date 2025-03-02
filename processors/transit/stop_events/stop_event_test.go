@@ -98,7 +98,7 @@ func TestStopEventProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flow := NewStopEventProcessor(context.Background())
+			flow := NewStopEventProcessor(context.Background(), nil)
 			results := make([]*pb.StopEvent, 0)
 			done := make(chan bool)
 

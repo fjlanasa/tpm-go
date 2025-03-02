@@ -1,6 +1,7 @@
 package state_stores
 
 import (
+	"sync"
 	"time"
 
 	"github.com/fjlanasa/tpm-go/config"
@@ -16,31 +17,46 @@ type InMemoryState struct {
 type InMemoryStateStore struct {
 	ttl    time.Duration
 	states map[string]*InMemoryState
-	new    func() proto.Message
+	mu     sync.RWMutex  // Add mutex for thread safety
+	done   chan struct{} // Add channel for cleanup
 }
 
-func NewInMemoryStateStore(config config.InMemoryStateStoreConfig, new func() proto.Message) *InMemoryStateStore {
+func NewInMemoryStateStore(config config.InMemoryStateStoreConfig) *InMemoryStateStore {
 	if config.Expiry == 0 {
 		config.Expiry = time.Hour
 	}
 	s := &InMemoryStateStore{
 		ttl:    config.Expiry,
 		states: make(map[string]*InMemoryState),
-		new:    new,
+		done:   make(chan struct{}),
 	}
 	go s.expire()
 	return s
 }
 
-func (s *InMemoryStateStore) Get(key string) (proto.Message, bool) {
+func (s *InMemoryStateStore) Get(key string, new func() proto.Message) (proto.Message, bool) {
+	if s == nil || new == nil {
+		return nil, false
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	state, ok := s.states[key]
 	if !ok || state.expiration.Before(time.Now()) {
-		return s.new(), false
+		msg := new()
+		if msg == nil {
+			return nil, false
+		}
+		return msg, false
 	}
 	return state.msg, true
 }
 
-func (s *InMemoryStateStore) Set(key string, msg proto.Message, ttl time.Duration) {
+func (s *InMemoryStateStore) Set(key string, msg proto.Message, ttl time.Duration) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if ttl == 0 {
 		ttl = s.ttl
 	}
@@ -49,30 +65,35 @@ func (s *InMemoryStateStore) Set(key string, msg proto.Message, ttl time.Duratio
 		ttl:        ttl,
 		expiration: time.Now().Add(ttl),
 	}
+	return nil
 }
 
 func (s *InMemoryStateStore) Delete(key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	delete(s.states, key)
 }
 
-func (s *InMemoryStateStore) Upsert(key string, msg proto.Message) (proto.Message, proto.Message) {
-	old, ok := s.Get(key)
-	if !ok {
-		s.Set(key, msg, s.ttl)
-		return s.new(), msg
-	}
-	s.Set(key, msg, s.ttl)
-	return old, msg
+func (s *InMemoryStateStore) Close() {
+	close(s.done)
 }
 
 func (s *InMemoryStateStore) expire() {
-	// try every ttl duration
+	ticker := time.NewTicker(s.ttl)
+	defer ticker.Stop()
+
 	for {
-		time.Sleep(s.ttl)
-		for key, state := range s.states {
-			if state.expiration.Before(time.Now()) {
-				s.Delete(key)
+		select {
+		case <-ticker.C:
+			s.mu.Lock()
+			for key, state := range s.states {
+				if state.expiration.Before(time.Now()) {
+					delete(s.states, key)
+				}
 			}
+			s.mu.Unlock()
+		case <-s.done:
+			return
 		}
 	}
 }
