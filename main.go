@@ -83,23 +83,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// var outlet *chan any
-	// if config.EventServer != nil {
-	// 	ch := make(chan any)
-	// 	outlet = &ch
-	// }
 	graph, err := graphs.NewGraph(ctx, *graphConfig)
 	if err != nil {
 		slog.Error("failed to create graph", "error", err)
 		os.Exit(1)
 	}
 	go graph.Run()
-	// go func() {
-	// 	if config.EventServer != nil {
-	// 		eventServer := event_server.NewEventServer(ctx, *config.EventServer)
-	// 		extension.NewChanSource(*outlet).Via(flow.NewPassThrough()).To(sinks.NewHttpSink(ctx, eventServer))
-	// 	}
-	// }()
 
 	// Wait for shutdown signal
 	<-sigChan

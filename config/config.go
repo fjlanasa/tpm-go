@@ -9,13 +9,11 @@ import (
 type ID string
 
 type ConfigYaml struct {
-	EventServer *EventServerConfig `yaml:"event_server"`
-	Graph       *GraphConfig       `yaml:"graph"`
+	Graph *GraphConfig `yaml:"graph"`
 }
 
 type Config struct {
-	EventServer *EventServerConfig
-	Graph       *GraphConfig
+	Graph *GraphConfig
 }
 
 func ReadConfig(path string) (*Config, error) {
@@ -32,7 +30,6 @@ func ReadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 	return &Config{
-		EventServer: config.EventServer,
-		Graph:       config.Graph,
+		Graph: config.Graph,
 	}, nil
 }

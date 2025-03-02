@@ -1,7 +1,3 @@
-event_server:
-  port: "8080"
-  path: "/events"
-
 graph:
   connectors:
     feed-message-connector:
@@ -19,26 +15,15 @@ graph:
         interval: "1s"
 
   sinks:
-    vp-sink-console:
+    console-sink:
       type: "console"
       console:
         level: "info"
-    se-sink-console:
-      type: "console"
-      console:
-        level: "info"
-    headway-sink-console:
-      type: "console"
-      console:
-        level: "info"
-    dwell-sink-console:
-      type: "console"
-      console:
-        level: "info"
-    travel-time-sink-console:
-      type: "console"
-      console:
-        level: "info"
+    sse-sink:
+      type: "sse"
+      sse:
+        port: "8080"
+        path: "/events"
 
   pipelines:
     feed-message-pipeline:
@@ -54,32 +39,32 @@ graph:
       type: "vehicle_position"
       sources: ["feed-message-connector"]
       state_store: "vp-state-store"
-      sinks: ["vp-connector", "vp-sink-console"]
+      sinks: ["vp-connector", "console-sink", "sse-sink"]
 
     se-pipeline:
       id: "se-pipeline"
       type: "stop_event"
       sources: ["vp-connector"]
       state_store: "se-state-store"
-      sinks: ["headway-connector", "dwell-connector", "travel-time-connector", "se-sink-console"]
+      sinks: ["headway-connector", "dwell-connector", "travel-time-connector", "console-sink", "sse-sink"]
 
     headway-pipeline:
       id: "headway-pipeline"
       type: "headway_event"
       sources: ["headway-connector"]
       state_store: "headway-state-store"
-      sinks: ["headway-sink-console"]
+      sinks: ["console-sink", "sse-sink"]
 
     dwell-pipeline:
       id: "dwell-pipeline"
       type: "dwell_event"
       sources: ["dwell-connector"]
       state_store: "dwell-state-store"
-      sinks: ["dwell-sink-console"]
+      sinks: ["console-sink", "sse-sink"]
 
     travel-time-pipeline:
       id: "travel-time-pipeline"
       type: "travel_time"
       sources: ["travel-time-connector"]
       state_store: "travel-time-state-store"
-      sinks: ["travel-time-sink-console"]
+      sinks: ["console-sink", "sse-sink"]

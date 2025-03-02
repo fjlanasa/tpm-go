@@ -9,6 +9,7 @@ const (
 	SinkTypeConsole    SinkType = "console"
 	SinkTypeFileSystem SinkType = "file_system"
 	SinkTypeRedis      SinkType = "redis"
+	SinkTypeSSE        SinkType = "sse"
 )
 
 type ConsoleSinkLevel string
@@ -41,6 +42,11 @@ type RedisSinkConfig struct {
 	Channel  string `yaml:"channel"`
 }
 
+type SSESinkConfig struct {
+	Port string `yaml:"port"`
+	Path string `yaml:"path"`
+}
+
 type SinkConfig struct {
 	ID             ID            `yaml:"id"`
 	Type           SinkType      `yaml:"type"`
@@ -57,6 +63,8 @@ type SinkConfig struct {
 	FileSystem FileSystemSinkConfig `yaml:"file_system"`
 	// Redis
 	Redis RedisSinkConfig `yaml:"redis"`
+	// SSE
+	SSE SSESinkConfig `yaml:"sse"`
 	// Connector Channel
 	Connector ConnectorConfig `yaml:"connector"`
 }

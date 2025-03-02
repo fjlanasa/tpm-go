@@ -21,6 +21,8 @@ func NewSink(
 		return NewLogSink(ctx, cfg.Console)
 	case config.SinkTypeConnector:
 		return NewConnectorSink(ctx, cfg.Connector, connectors)
+	case config.SinkTypeSSE:
+		return NewSSESink(ctx, cfg.SSE)
 	}
 	return nil
 }

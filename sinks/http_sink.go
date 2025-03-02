@@ -4,16 +4,18 @@ import (
 	"context"
 
 	"github.com/fjlanasa/tpm-go/api/v1/events"
+	"github.com/fjlanasa/tpm-go/config"
 	"github.com/fjlanasa/tpm-go/event_server"
 )
 
-type HttpSink struct {
+type SSESink struct {
 	server *event_server.EventServer
 	in     chan any
 }
 
-func NewHttpSink(ctx context.Context, server *event_server.EventServer) *HttpSink {
-	sink := &HttpSink{server: server, in: make(chan any)}
+func NewSSESink(ctx context.Context, cfg config.SSESinkConfig) *SSESink {
+	server := event_server.NewEventServer(ctx, config.EventServerConfig(cfg))
+	sink := &SSESink{server: server, in: make(chan any)}
 	go func() {
 		defer close(sink.in)
 		for {
@@ -33,6 +35,6 @@ func NewHttpSink(ctx context.Context, server *event_server.EventServer) *HttpSin
 	return sink
 }
 
-func (hs *HttpSink) In() chan<- any {
+func (hs *SSESink) In() chan<- any {
 	return hs.in
 }
