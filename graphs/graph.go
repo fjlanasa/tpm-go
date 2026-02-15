@@ -2,6 +2,7 @@ package graphs
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fjlanasa/tpm-go/config"
 	"github.com/fjlanasa/tpm-go/pipelines"
@@ -11,8 +12,9 @@ import (
 )
 
 type Graph struct {
-	pipelines []pipelines.Pipeline
-	outlet    *chan any
+	pipelines   []pipelines.Pipeline
+	stateStores []state_stores.StateStore
+	outlet      *chan any
 }
 
 type GraphOption func(*Graph, *map[config.ID]chan any, *config.GraphConfig)
@@ -60,60 +62,23 @@ func NewGraph(ctx context.Context, cfg config.GraphConfig, opts ...GraphOption) 
 
 	stateStoresByID := make(map[config.ID]state_stores.StateStore)
 	for stateStoreId, stateStore := range cfg.StateStores {
-		stateStoresByID[stateStoreId] = state_stores.NewStateStore(ctx, stateStore)
+		ss := state_stores.NewStateStore(ctx, stateStore)
+		stateStoresByID[stateStoreId] = ss
+		graph.stateStores = append(graph.stateStores, ss)
 	}
 
 	for _, pipelineConfig := range cfg.Pipelines {
-		switch pipelineConfig.Type {
-		case config.PipelineTypeFeedMessage:
-			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
-				ctx,
-				pipelineConfig,
-				sourcesByID,
-				sinksByID,
-				stateStoresByID,
-			))
-		case config.PipelineTypeVehiclePosition:
-			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
-				ctx,
-				pipelineConfig,
-				sourcesByID,
-				sinksByID,
-				stateStoresByID,
-			))
-		case config.PipelineTypeStopEvent:
-			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
-				ctx,
-				pipelineConfig,
-				sourcesByID,
-				sinksByID,
-				stateStoresByID,
-			))
-		case config.PipelineTypeDwellEvent:
-			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
-				ctx,
-				pipelineConfig,
-				sourcesByID,
-				sinksByID,
-				stateStoresByID,
-			))
-		case config.PipelineTypeHeadwayEvent:
-			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
-				ctx,
-				pipelineConfig,
-				sourcesByID,
-				sinksByID,
-				stateStoresByID,
-			))
-		case config.PipelineTypeTravelTime:
-			graph.pipelines = append(graph.pipelines, *pipelines.NewPipeline(
-				ctx,
-				pipelineConfig,
-				sourcesByID,
-				sinksByID,
-				stateStoresByID,
-			))
+		p, err := pipelines.NewPipeline(
+			ctx,
+			pipelineConfig,
+			sourcesByID,
+			sinksByID,
+			stateStoresByID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("pipeline %q: %w", pipelineConfig.ID, err)
 		}
+		graph.pipelines = append(graph.pipelines, *p)
 	}
 	return graph, nil
 }
@@ -125,5 +90,12 @@ func (g *Graph) Out() *chan any {
 func (g *Graph) Run() {
 	for _, pipeline := range g.pipelines {
 		go pipeline.Run()
+	}
+}
+
+// Close shuts down all state stores owned by the graph.
+func (g *Graph) Close() {
+	for _, ss := range g.stateStores {
+		ss.Close()
 	}
 }

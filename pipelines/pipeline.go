@@ -2,8 +2,7 @@ package pipelines
 
 import (
 	"context"
-	"log/slog"
-	"os"
+	"fmt"
 
 	"github.com/fjlanasa/tpm-go/config"
 	"github.com/fjlanasa/tpm-go/processors"
@@ -31,22 +30,21 @@ func NewPipeline(
 	sourcesByID map[config.ID]sources.Source,
 	sinksByID map[config.ID]sinks.Sink,
 	stateStoresByID map[config.ID]state_stores.StateStore,
-) *Pipeline {
-	// Find pipeline config from list of pipelines. match by id
+) (*Pipeline, error) {
 	pipelineSources := []sources.Source{}
-	for _, sourceConfig := range config.Sources {
-		source := sourcesByID[sourceConfig]
+	for _, sourceID := range config.Sources {
+		source, found := sourcesByID[sourceID]
+		if !found {
+			return nil, fmt.Errorf("pipeline %q: source %q not found", config.ID, sourceID)
+		}
 		pipelineSources = append(pipelineSources, source)
 	}
 	stateStore := stateStoresByID[config.StateStore]
 	pipelineSinks := []sinks.Sink{}
-	for _, sinkConfig := range config.Sinks {
-		sink, found := sinksByID[sinkConfig]
+	for _, sinkID := range config.Sinks {
+		sink, found := sinksByID[sinkID]
 		if !found {
-			if !found {
-				slog.Error("sink not found", "sink_id", sinkConfig)
-				os.Exit(1)
-			}
+			return nil, fmt.Errorf("pipeline %q: sink %q not found", config.ID, sinkID)
 		}
 		pipelineSinks = append(pipelineSinks, sink)
 	}
@@ -60,8 +58,7 @@ func NewPipeline(
 		stateStore:   stateStore,
 		sinks:        pipelineSinks,
 		processor:    processor,
-	}
-
+	}, nil
 }
 
 func (p *Pipeline) Run() {

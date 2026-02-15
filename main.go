@@ -92,6 +92,13 @@ func main() {
 
 	// Wait for shutdown signal
 	<-sigChan
-	fmt.Println("\nShutting down...")
+	slog.Info("Shutting down...")
 
+	// Cancel context to signal all goroutines to stop
+	cancel()
+
+	// Close state stores and other resources
+	graph.Close()
+
+	slog.Info("Shutdown complete")
 }

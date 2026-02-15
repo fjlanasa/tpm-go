@@ -51,10 +51,13 @@ func TestVehiclePositionsSource(t *testing.T) {
 		Body: io.NopCloser(bytes.NewReader(createMockFeedMessage())),
 	}
 
-	source := NewHttpSource(context.Background(), config.HTTPSourceConfig{
+	source, err := NewHttpSource(context.Background(), config.HTTPSourceConfig{
 		URL:      "http://test.com",
 		Interval: "100ms",
 	}, &mockHTTPClient{response: mockResponse})
+	if err != nil {
+		t.Fatalf("failed to create http source: %v", err)
+	}
 
 	// Wait for first message
 	select {

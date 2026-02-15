@@ -12,6 +12,7 @@ type StateStore interface {
 	Get(key string, new func() proto.Message) (proto.Message, bool)
 	Set(key string, msg proto.Message, ttl time.Duration) error
 	Delete(key string)
+	Close()
 }
 
 func NewStateStore(ctx context.Context, cfg config.StateStoreConfig) StateStore {
