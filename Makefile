@@ -1,4 +1,4 @@
-.PHONY: generate test lint coverage
+.PHONY: generate test lint coverage setup
 
 generate:
 	protoc \
@@ -32,3 +32,8 @@ lint:
 
 coverage:
 	go test -race -coverprofile=coverage.out ./... && go tool cover -func=coverage.out
+
+setup:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go mod download
+	@echo "Setup complete. Ensure 'protoc' and 'golangci-lint' are installed on your system."
