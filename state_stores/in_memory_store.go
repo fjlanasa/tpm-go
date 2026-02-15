@@ -35,10 +35,6 @@ func NewInMemoryStateStore(config config.InMemoryStateStoreConfig) *InMemoryStat
 }
 
 func (s *InMemoryStateStore) Get(key string, new func() proto.Message) (proto.Message, bool) {
-	if s == nil || new == nil {
-		return nil, false
-	}
-
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
