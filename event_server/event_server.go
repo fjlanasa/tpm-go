@@ -171,7 +171,7 @@ func (es *EventServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			fmt.Fprintf(w, "data: %s\n\n", data)
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", data)
 			flusher.Flush()
 		}
 	}

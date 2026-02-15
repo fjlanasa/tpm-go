@@ -113,7 +113,7 @@ func (d *DwellEventProcessor) process(event *pb.StopEvent) {
 		d.stateStore.Delete(key.String())
 		d.out <- dwellEvent
 	} else if event.GetStopEventType() == pb.StopEvent_ARRIVAL {
-		d.stateStore.Set(key.String(), event, time.Hour)
+		_ = d.stateStore.Set(key.String(), event, time.Hour)
 	}
 }
 

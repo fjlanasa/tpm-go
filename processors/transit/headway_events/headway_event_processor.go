@@ -91,7 +91,7 @@ func (f *HeadwayEventProcessor) process(event *pb.StopEvent) {
 	stopEvent := state.(*pb.StopEvent)
 	if !found {
 		// First arrival at this stop/route/direction
-		f.headwayStates.Set(key.String(), event, time.Hour)
+		_ = f.headwayStates.Set(key.String(), event, time.Hour)
 		return
 	}
 
@@ -121,7 +121,7 @@ func (f *HeadwayEventProcessor) process(event *pb.StopEvent) {
 	}
 
 	// Update state
-	f.headwayStates.Set(key.String(), event, time.Hour)
+	_ = f.headwayStates.Set(key.String(), event, time.Hour)
 
 	f.out <- headwayEvent
 }

@@ -50,7 +50,7 @@ func (s *HttpSource) init() {
 				log.Fatal(err)
 			}
 			s.out <- body
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 	}
 
