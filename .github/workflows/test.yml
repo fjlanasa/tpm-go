@@ -28,9 +28,9 @@ jobs:
       run: make generate
 
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v8
       with:
-        version: latest
+        version: v2.5
 
   test:
     name: Run Tests

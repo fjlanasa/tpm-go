@@ -6,8 +6,7 @@ linters:
     govet:
       disable:
         - shadow
-
-issues:
-  exclude-dirs:
-    - third_party
-  exclude-generated-strict: true
+  exclusions:
+    generated: strict
+    paths:
+      - third_party
