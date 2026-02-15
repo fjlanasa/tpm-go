@@ -54,8 +54,7 @@ func TestVehiclePositionsSource(t *testing.T) {
 	source := NewHttpSource(context.Background(), config.HTTPSourceConfig{
 		URL:      "http://test.com",
 		Interval: "100ms",
-	})
-	source.SetHTTPClient(&mockHTTPClient{response: mockResponse})
+	}, &mockHTTPClient{response: mockResponse})
 
 	// Wait for first message
 	select {

@@ -23,8 +23,12 @@ type HttpSource struct {
 	out    chan any
 }
 
-func NewHttpSource(ctx context.Context, cfg config.HTTPSourceConfig) *HttpSource {
-	source := &HttpSource{ctx: ctx, cfg: cfg, client: http.DefaultClient, out: make(chan any)}
+func NewHttpSource(ctx context.Context, cfg config.HTTPSourceConfig, client ...HTTPClient) *HttpSource {
+	var c HTTPClient = http.DefaultClient
+	if len(client) > 0 && client[0] != nil {
+		c = client[0]
+	}
+	source := &HttpSource{ctx: ctx, cfg: cfg, client: c, out: make(chan any)}
 	go source.init()
 	return source
 }
@@ -65,6 +69,3 @@ func (s *HttpSource) Out() <-chan any {
 	return s.out
 }
 
-func (s *HttpSource) SetHTTPClient(client HTTPClient) {
-	s.client = client
-}
