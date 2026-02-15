@@ -26,9 +26,6 @@ func ReadConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err != nil {
-		return nil, err
-	}
 	return &Config{
 		Graph: config.Graph,
 	}, nil

@@ -38,7 +38,7 @@ func NewPipeline(
 		source := sourcesByID[sourceConfig]
 		pipelineSources = append(pipelineSources, source)
 	}
-	stateStore, _ := stateStoresByID[config.StateStore]
+	stateStore := stateStoresByID[config.StateStore]
 	pipelineSinks := []sinks.Sink{}
 	for _, sinkConfig := range config.Sinks {
 		sink, found := sinksByID[sinkConfig]

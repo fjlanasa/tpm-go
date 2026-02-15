@@ -113,7 +113,7 @@ func (f *TravelTimeEventProcessor) process(event *pb.StopEvent) {
 		}
 	}
 
-	f.tripStates.Set(key.String(), currentArrival, time.Hour)
+	_ = f.tripStates.Set(key.String(), currentArrival, time.Hour)
 }
 
 func (f *TravelTimeEventProcessor) doStream() {
