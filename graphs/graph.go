@@ -8,12 +8,12 @@ import (
 	"github.com/fjlanasa/tpm-go/pipelines"
 	"github.com/fjlanasa/tpm-go/sinks"
 	"github.com/fjlanasa/tpm-go/sources"
-	"github.com/fjlanasa/tpm-go/state_stores"
+	"github.com/fjlanasa/tpm-go/statestore"
 )
 
 type Graph struct {
 	pipelines   []pipelines.Pipeline
-	stateStores []state_stores.StateStore
+	stateStores []statestore.StateStore
 	outlet      *chan any
 }
 
@@ -24,18 +24,18 @@ func NewGraph(ctx context.Context, cfg config.GraphConfig, opts ...GraphOption) 
 	connectors := make(map[config.ID]chan any)
 
 	// Set up remaining connectors
-	for connectorId := range cfg.Connectors {
-		connectors[connectorId] = make(chan any)
-		cfg.Sources[connectorId] = config.SourceConfig{
+	for connectorID := range cfg.Connectors {
+		connectors[connectorID] = make(chan any)
+		cfg.Sources[connectorID] = config.SourceConfig{
 			Type: config.SourceTypeConnector,
 			Connector: config.ConnectorConfig{
-				ID: connectorId,
+				ID: connectorID,
 			},
 		}
-		cfg.Sinks[connectorId] = config.SinkConfig{
+		cfg.Sinks[connectorID] = config.SinkConfig{
 			Type: config.SinkTypeConnector,
 			Connector: config.ConnectorConfig{
-				ID: connectorId,
+				ID: connectorID,
 			},
 		}
 	}
@@ -46,24 +46,24 @@ func NewGraph(ctx context.Context, cfg config.GraphConfig, opts ...GraphOption) 
 	}
 
 	sourcesByID := make(map[config.ID]sources.Source)
-	for sourceId, source := range cfg.Sources {
+	for sourceID, source := range cfg.Sources {
 		source, err := sources.NewSource(ctx, source, connectors)
 		if err != nil {
 			return nil, err
 		}
-		sourcesByID[sourceId] = source
+		sourcesByID[sourceID] = source
 	}
 
 	sinksByID := make(map[config.ID]sinks.Sink)
 
-	for sinkId, sink := range cfg.Sinks {
-		sinksByID[sinkId] = sinks.NewSink(ctx, sink, connectors)
+	for sinkID, sink := range cfg.Sinks {
+		sinksByID[sinkID] = sinks.NewSink(ctx, sink, connectors)
 	}
 
-	stateStoresByID := make(map[config.ID]state_stores.StateStore)
-	for stateStoreId, stateStore := range cfg.StateStores {
-		ss := state_stores.NewStateStore(ctx, stateStore)
-		stateStoresByID[stateStoreId] = ss
+	stateStoresByID := make(map[config.ID]statestore.StateStore)
+	for stateStoreID, stateStoreCfg := range cfg.StateStores {
+		ss := statestore.NewStateStore(ctx, stateStoreCfg)
+		stateStoresByID[stateStoreID] = ss
 		graph.stateStores = append(graph.stateStores, ss)
 	}
 

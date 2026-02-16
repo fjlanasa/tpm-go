@@ -7,32 +7,32 @@ import (
 
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/config"
-	"github.com/fjlanasa/tpm-go/state_stores"
+	"github.com/fjlanasa/tpm-go/statestore"
 	"github.com/reugn/go-streams"
 	"google.golang.org/protobuf/proto"
 )
 
 type tripKey struct {
-	routeId     string
-	directionId string
-	vehicleId   string
-	tripId      string
+	routeID     string
+	directionID string
+	vehicleID   string
+	tripID      string
 }
 
 func (k tripKey) String() string {
-	return fmt.Sprintf("%s-%s-%s-%s", k.routeId, k.directionId, k.vehicleId, k.tripId)
+	return fmt.Sprintf("%s-%s-%s-%s", k.routeID, k.directionID, k.vehicleID, k.tripID)
 }
 
 type TravelTimeEventProcessor struct {
 	in         chan any
 	out        chan any
-	tripStates state_stores.StateStore
+	tripStates statestore.StateStore
 }
 
-func NewTravelTimeEventProcessor(ctx context.Context, stateStore state_stores.StateStore) *TravelTimeEventProcessor {
-	var tripStates state_stores.StateStore
+func NewTravelTimeEventProcessor(ctx context.Context, stateStore statestore.StateStore) *TravelTimeEventProcessor {
+	var tripStates statestore.StateStore
 	if stateStore == nil {
-		tripStates = state_stores.NewStateStore(ctx, config.StateStoreConfig{
+		tripStates = statestore.NewStateStore(ctx, config.StateStoreConfig{
 			Type: config.InMemoryStateStoreType,
 			InMemory: config.InMemoryStateStoreConfig{
 				Expiry: time.Hour * 2,
@@ -83,10 +83,10 @@ func (f *TravelTimeEventProcessor) process(event *pb.StopEvent) {
 	currentArrival := event
 
 	key := tripKey{
-		routeId:     event.GetAttributes().GetRouteId(),
-		directionId: event.GetAttributes().GetDirectionId(),
-		vehicleId:   event.GetAttributes().GetVehicleId(),
-		tripId:      event.GetAttributes().GetTripId(),
+		routeID:     event.GetAttributes().GetRouteId(),
+		directionID: event.GetAttributes().GetDirectionId(),
+		vehicleID:   event.GetAttributes().GetVehicleId(),
+		tripID:      event.GetAttributes().GetTripId(),
 	}
 
 	previousArrival, found := f.tripStates.Get(key.String(), func() proto.Message {

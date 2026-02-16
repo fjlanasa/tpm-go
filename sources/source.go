@@ -15,7 +15,7 @@ type Source interface {
 func NewSource(ctx context.Context, cfg config.SourceConfig, connectors map[config.ID]chan any) (Source, error) {
 	switch cfg.Type {
 	case config.SourceTypeHTTP:
-		return NewHttpSource(ctx, cfg.HTTP)
+		return NewHTTPSource(ctx, cfg.HTTP)
 	case config.SourceTypeConnector:
 		source := NewConnectorSource(ctx, cfg.Connector, connectors)
 		return source, nil

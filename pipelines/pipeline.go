@@ -9,7 +9,7 @@ import (
 
 	"github.com/fjlanasa/tpm-go/sinks"
 	"github.com/fjlanasa/tpm-go/sources"
-	"github.com/fjlanasa/tpm-go/state_stores"
+	"github.com/fjlanasa/tpm-go/statestore"
 	"github.com/reugn/go-streams"
 	"github.com/reugn/go-streams/flow"
 )
@@ -19,41 +19,41 @@ type Pipeline struct {
 	agencyID     config.ID
 	pipelineType config.PipelineType
 	sources      []sources.Source
-	stateStore   state_stores.StateStore
+	stateStore   statestore.StateStore
 	sinks        []sinks.Sink
 	processor    processors.Processor
 }
 
 func NewPipeline(
 	ctx context.Context,
-	config config.PipelineConfig,
+	cfg config.PipelineConfig,
 	sourcesByID map[config.ID]sources.Source,
 	sinksByID map[config.ID]sinks.Sink,
-	stateStoresByID map[config.ID]state_stores.StateStore,
+	stateStoresByID map[config.ID]statestore.StateStore,
 ) (*Pipeline, error) {
 	pipelineSources := []sources.Source{}
-	for _, sourceID := range config.Sources {
+	for _, sourceID := range cfg.Sources {
 		source, found := sourcesByID[sourceID]
 		if !found {
-			return nil, fmt.Errorf("pipeline %q: source %q not found", config.ID, sourceID)
+			return nil, fmt.Errorf("pipeline %q: source %q not found", cfg.ID, sourceID)
 		}
 		pipelineSources = append(pipelineSources, source)
 	}
-	stateStore := stateStoresByID[config.StateStore]
+	stateStore := stateStoresByID[cfg.StateStore]
 	pipelineSinks := []sinks.Sink{}
-	for _, sinkID := range config.Sinks {
+	for _, sinkID := range cfg.Sinks {
 		sink, found := sinksByID[sinkID]
 		if !found {
-			return nil, fmt.Errorf("pipeline %q: sink %q not found", config.ID, sinkID)
+			return nil, fmt.Errorf("pipeline %q: sink %q not found", cfg.ID, sinkID)
 		}
 		pipelineSinks = append(pipelineSinks, sink)
 	}
-	processor := processors.NewProcessor(ctx, config.AgencyID, config.Type, stateStore)
+	processor := processors.NewProcessor(ctx, cfg.AgencyID, cfg.Type, stateStore)
 
 	return &Pipeline{
-		ID:           config.ID,
-		agencyID:     config.AgencyID,
-		pipelineType: config.Type,
+		ID:           cfg.ID,
+		agencyID:     cfg.AgencyID,
+		pipelineType: cfg.Type,
 		sources:      pipelineSources,
 		stateStore:   stateStore,
 		sinks:        pipelineSinks,

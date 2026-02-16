@@ -7,43 +7,43 @@ import (
 
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/config"
-	"github.com/fjlanasa/tpm-go/state_stores"
+	"github.com/fjlanasa/tpm-go/statestore"
 	"github.com/reugn/go-streams"
 	"google.golang.org/protobuf/proto"
 )
 
 type DwellStopKey struct {
-	agencyId    string
-	routeId     string
-	stopId      string
-	directionId string
-	vehicleId   string
+	agencyID    string
+	routeID     string
+	stopID      string
+	directionID string
+	vehicleID   string
 }
 
 func NewDwellStopKey(stopEvent *pb.StopEvent) DwellStopKey {
 	return DwellStopKey{
-		agencyId:    stopEvent.GetAttributes().GetAgencyId(),
-		routeId:     stopEvent.GetAttributes().GetRouteId(),
-		stopId:      stopEvent.GetAttributes().GetStopId(),
-		directionId: stopEvent.GetAttributes().GetDirectionId(),
-		vehicleId:   stopEvent.GetAttributes().GetVehicleId(),
+		agencyID:    stopEvent.GetAttributes().GetAgencyId(),
+		routeID:     stopEvent.GetAttributes().GetRouteId(),
+		stopID:      stopEvent.GetAttributes().GetStopId(),
+		directionID: stopEvent.GetAttributes().GetDirectionId(),
+		vehicleID:   stopEvent.GetAttributes().GetVehicleId(),
 	}
 }
 
 func (k *DwellStopKey) String() string {
-	return fmt.Sprintf("%s-%s-%s-%s-%s", k.agencyId, k.routeId, k.stopId, k.directionId, k.vehicleId)
+	return fmt.Sprintf("%s-%s-%s-%s-%s", k.agencyID, k.routeID, k.stopID, k.directionID, k.vehicleID)
 }
 
 type DwellEventProcessor struct {
 	in         chan any
 	out        chan any
-	stateStore state_stores.StateStore
+	stateStore statestore.StateStore
 }
 
-func NewDwellEventProcessor(ctx context.Context, stateStore state_stores.StateStore) *DwellEventProcessor {
-	var dwellStates state_stores.StateStore
+func NewDwellEventProcessor(ctx context.Context, stateStore statestore.StateStore) *DwellEventProcessor {
+	var dwellStates statestore.StateStore
 	if stateStore == nil {
-		dwellStates = state_stores.NewStateStore(ctx, config.StateStoreConfig{
+		dwellStates = statestore.NewStateStore(ctx, config.StateStoreConfig{
 			Type: config.InMemoryStateStoreType,
 			InMemory: config.InMemoryStateStoreConfig{
 				Expiry: time.Hour,

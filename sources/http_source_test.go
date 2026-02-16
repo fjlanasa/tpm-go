@@ -51,7 +51,7 @@ func TestVehiclePositionsSource(t *testing.T) {
 		Body: io.NopCloser(bytes.NewReader(createMockFeedMessage())),
 	}
 
-	source, err := NewHttpSource(context.Background(), config.HTTPSourceConfig{
+	source, err := NewHTTPSource(context.Background(), config.HTTPSourceConfig{
 		URL:      "http://test.com",
 		Interval: "100ms",
 	}, &mockHTTPClient{response: mockResponse})

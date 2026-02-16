@@ -1,4 +1,4 @@
-package state_stores
+package statestore
 
 import (
 	"sync"

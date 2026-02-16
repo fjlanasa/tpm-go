@@ -17,7 +17,7 @@ type HTTPClient interface {
 	Get(url string) (*http.Response, error)
 }
 
-type HttpSource struct {
+type HTTPSource struct {
 	ctx      context.Context
 	cfg      config.HTTPSourceConfig
 	client   HTTPClient
@@ -25,7 +25,7 @@ type HttpSource struct {
 	interval time.Duration
 }
 
-func NewHttpSource(ctx context.Context, cfg config.HTTPSourceConfig, client ...HTTPClient) (*HttpSource, error) {
+func NewHTTPSource(ctx context.Context, cfg config.HTTPSourceConfig, client ...HTTPClient) (*HTTPSource, error) {
 	var c HTTPClient = http.DefaultClient
 	if len(client) > 0 && client[0] != nil {
 		c = client[0]
@@ -34,12 +34,12 @@ func NewHttpSource(ctx context.Context, cfg config.HTTPSourceConfig, client ...H
 	if err != nil {
 		return nil, fmt.Errorf("invalid polling interval %q: %w", cfg.Interval, err)
 	}
-	source := &HttpSource{ctx: ctx, cfg: cfg, client: c, out: make(chan any), interval: duration}
+	source := &HTTPSource{ctx: ctx, cfg: cfg, client: c, out: make(chan any), interval: duration}
 	go source.init()
 	return source, nil
 }
 
-func (s *HttpSource) init() {
+func (s *HTTPSource) init() {
 	ticker := time.NewTicker(s.interval)
 
 	for {
@@ -64,12 +64,12 @@ func (s *HttpSource) init() {
 
 }
 
-func (s *HttpSource) Via(operator streams.Flow) streams.Flow {
+func (s *HTTPSource) Via(operator streams.Flow) streams.Flow {
 	flow.DoStream(s, operator)
 	return operator
 }
 
-func (s *HttpSource) Out() <-chan any {
+func (s *HTTPSource) Out() <-chan any {
 	return s.out
 }
 
