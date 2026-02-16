@@ -7,31 +7,31 @@ import (
 
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/config"
-	"github.com/fjlanasa/tpm-go/state_stores"
+	"github.com/fjlanasa/tpm-go/statestore"
 	"github.com/reugn/go-streams"
 	"google.golang.org/protobuf/proto"
 )
 
 type headwayStopKey struct {
-	routeId     string
-	stopId      string
-	directionId string
+	routeID     string
+	stopID      string
+	directionID string
 }
 
 func (k headwayStopKey) String() string {
-	return fmt.Sprintf("%s-%s-%s", k.routeId, k.directionId, k.stopId)
+	return fmt.Sprintf("%s-%s-%s", k.routeID, k.directionID, k.stopID)
 }
 
 type HeadwayEventProcessor struct {
 	in            chan any
 	out           chan any
-	headwayStates state_stores.StateStore
+	headwayStates statestore.StateStore
 }
 
-func NewHeadwayEventProcessor(ctx context.Context, stateStore state_stores.StateStore) *HeadwayEventProcessor {
-	var headwayStates state_stores.StateStore
+func NewHeadwayEventProcessor(ctx context.Context, stateStore statestore.StateStore) *HeadwayEventProcessor {
+	var headwayStates statestore.StateStore
 	if stateStore == nil {
-		headwayStates = state_stores.NewStateStore(ctx, config.StateStoreConfig{
+		headwayStates = statestore.NewStateStore(ctx, config.StateStoreConfig{
 			Type: config.InMemoryStateStoreType,
 			InMemory: config.InMemoryStateStoreConfig{
 				Expiry: time.Hour * 2,
@@ -79,9 +79,9 @@ func (f *HeadwayEventProcessor) process(event *pb.StopEvent) {
 	}
 
 	key := headwayStopKey{
-		routeId:     event.GetAttributes().GetRouteId(),
-		stopId:      event.GetAttributes().GetStopId(),
-		directionId: event.GetAttributes().GetDirectionId(),
+		routeID:     event.GetAttributes().GetRouteId(),
+		stopID:      event.GetAttributes().GetStopId(),
+		directionID: event.GetAttributes().GetDirectionId(),
 	}
 
 	state, found := f.headwayStates.Get(key.String(), func() proto.Message {

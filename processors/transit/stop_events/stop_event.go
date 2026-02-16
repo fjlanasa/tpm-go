@@ -8,27 +8,27 @@ import (
 
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/config"
-	"github.com/fjlanasa/tpm-go/state_stores"
+	"github.com/fjlanasa/tpm-go/statestore"
 	"github.com/reugn/go-streams"
 	"google.golang.org/protobuf/proto"
 )
 
-type VehicleId string
+type VehicleID string
 
 type StopEventProcessor struct {
 	in            chan any
 	out           chan any
-	vehiclesState state_stores.StateStore
+	vehiclesState statestore.StateStore
 }
 
-func NewStopEventProcessor(ctx context.Context, stateStore state_stores.StateStore) *StopEventProcessor {
-	var vehiclesState state_stores.StateStore
+func NewStopEventProcessor(ctx context.Context, stateStore statestore.StateStore) *StopEventProcessor {
+	var vehiclesState statestore.StateStore
 	if stateStore != nil {
 		slog.Debug("Using provided state store")
 		vehiclesState = stateStore
 	} else {
 		slog.Debug("Using default state store")
-		vehiclesState = state_stores.NewStateStore(ctx, config.StateStoreConfig{
+		vehiclesState = statestore.NewStateStore(ctx, config.StateStoreConfig{
 			Type: config.InMemoryStateStoreType,
 			InMemory: config.InMemoryStateStoreConfig{
 				Expiry: time.Hour * 2,
@@ -69,7 +69,7 @@ func (s *StopEventProcessor) transmit(inlet streams.Inlet) {
 	close(inlet.In())
 }
 
-func (s *StopEventProcessor) makeStopEvent(vp *pb.VehiclePositionEvent, stopId string, eventType pb.StopEvent_EventType) *pb.StopEvent {
+func (s *StopEventProcessor) makeStopEvent(vp *pb.VehiclePositionEvent, stopID string, eventType pb.StopEvent_EventType) *pb.StopEvent {
 	if vp == nil {
 		fmt.Println("Warning: nil VehiclePosition")
 		return nil
@@ -77,15 +77,15 @@ func (s *StopEventProcessor) makeStopEvent(vp *pb.VehiclePositionEvent, stopId s
 
 	vehicleID := vp.GetAttributes().GetVehicleId()
 
-	if vehicleID == "" || stopId == "" {
-		fmt.Printf("Warning: missing required fields - vehicleID: %s, stopId: %s\n", vehicleID, stopId)
+	if vehicleID == "" || stopID == "" {
+		fmt.Printf("Warning: missing required fields - vehicleID: %s, stopID: %s\n", vehicleID, stopID)
 		return nil
 	}
 	return &pb.StopEvent{
 		Attributes: &pb.EventAttributes{
 			AgencyId:     vp.GetAttributes().GetAgencyId(),
 			RouteId:      vp.GetAttributes().GetRouteId(),
-			StopId:       stopId,
+			StopId:       stopID,
 			DirectionId:  vp.GetAttributes().GetDirection(),
 			StopSequence: int32(vp.GetAttributes().GetStopSequence()),
 			TripId:       vp.GetAttributes().GetTripId(),
@@ -119,8 +119,8 @@ func (s *StopEventProcessor) process(event *pb.VehiclePositionEvent) {
 		return
 	}
 
-	vehicleId := attrs.GetVehicleId()
-	if vehicleId == "" {
+	vehicleID := attrs.GetVehicleId()
+	if vehicleID == "" {
 		slog.Warn("empty vehicle ID in event")
 		return
 	}
@@ -130,16 +130,16 @@ func (s *StopEventProcessor) process(event *pb.VehiclePositionEvent) {
 		return &pb.VehiclePositionEvent{}
 	}
 
-	previousState, found := s.vehiclesState.Get(vehicleId, newMsg)
+	previousState, found := s.vehiclesState.Get(vehicleID, newMsg)
 	if previousState == nil {
-		slog.Warn("Got nil previousState from state store", "vehicleId", vehicleId)
+		slog.Warn("Got nil previousState from state store", "vehicleID", vehicleID)
 		return
 	}
 
 	// Store current event first to ensure we don't lose state
-	if err := s.vehiclesState.Set(vehicleId, event, time.Hour); err != nil {
+	if err := s.vehiclesState.Set(vehicleID, event, time.Hour); err != nil {
 		slog.Warn("Failed to store state",
-			"vehicleId", vehicleId,
+			"vehicleID", vehicleID,
 			"error", err)
 		return
 	}
@@ -150,13 +150,13 @@ func (s *StopEventProcessor) process(event *pb.VehiclePositionEvent) {
 
 	previous, ok := previousState.(*pb.VehiclePositionEvent)
 	if !ok || previous == nil {
-		slog.Warn("previous state conversion failed", "vehicleId", vehicleId)
+		slog.Warn("previous state conversion failed", "vehicleID", vehicleID)
 		return
 	}
 
 	prevAttrs := previous.GetAttributes()
 	if prevAttrs == nil {
-		slog.Warn("previous state has nil attributes", "vehicleId", vehicleId)
+		slog.Warn("previous state has nil attributes", "vehicleID", vehicleID)
 		return
 	}
 

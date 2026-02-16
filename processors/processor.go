@@ -10,7 +10,7 @@ import (
 	se "github.com/fjlanasa/tpm-go/processors/transit/stop_events"
 	te "github.com/fjlanasa/tpm-go/processors/transit/travel_time_events"
 	ve "github.com/fjlanasa/tpm-go/processors/transit/vehicle_position_events"
-	"github.com/fjlanasa/tpm-go/state_stores"
+	"github.com/fjlanasa/tpm-go/statestore"
 	"github.com/reugn/go-streams"
 )
 
@@ -18,7 +18,7 @@ type Processor interface {
 	streams.Flow
 }
 
-func NewProcessor(ctx context.Context, agencyID config.ID, pipelineType config.PipelineType, stateStore state_stores.StateStore) Processor {
+func NewProcessor(ctx context.Context, agencyID config.ID, pipelineType config.PipelineType, stateStore statestore.StateStore) Processor {
 	switch pipelineType {
 	case config.PipelineTypeFeedMessage:
 		return fm.NewFeedMessageProcessor(ctx, agencyID)

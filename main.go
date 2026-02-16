@@ -25,15 +25,15 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logUrl := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if logUrl != "" {
+	logURL := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if logURL != "" {
 		resource := resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String("tpm-go"),
 			semconv.ServiceVersionKey.String("v0.1.0"),
 		)
 		logExporter, err := otlploghttp.New(ctx,
-			otlploghttp.WithEndpoint(logUrl),
+			otlploghttp.WithEndpoint(logURL),
 			otlploghttp.WithInsecure(),
 		)
 		if err != nil {
@@ -70,13 +70,13 @@ func main() {
 		configPath = envPath
 	}
 
-	config, err := config.ReadConfig(configPath)
+	cfg, err := config.ReadConfig(configPath)
 	if err != nil {
 		slog.Error("failed to read config", "error", err)
 		os.Exit(1)
 	}
 
-	graphConfig := config.Graph
+	graphConfig := cfg.Graph
 
 	if graphConfig == nil {
 		slog.Error("graph config is nil")
@@ -92,6 +92,13 @@ func main() {
 
 	// Wait for shutdown signal
 	<-sigChan
-	fmt.Println("\nShutting down...")
+	slog.Info("Shutting down...")
 
+	// Cancel context to signal all goroutines to stop
+	cancel()
+
+	// Close state stores and other resources
+	graph.Close()
+
+	slog.Info("Shutdown complete")
 }

@@ -1,4 +1,4 @@
-package state_stores
+package statestore
 
 import (
 	"context"
@@ -57,4 +57,8 @@ func (s *RedisStateStore) Set(key string, msg proto.Message, ttl time.Duration) 
 
 func (s *RedisStateStore) Delete(key string) {
 	s.client.Del(s.ctx, key)
+}
+
+func (s *RedisStateStore) Close() {
+	_ = s.client.Close()
 }

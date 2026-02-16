@@ -48,12 +48,13 @@ func (s *LogSink) doSink(ctx context.Context) {
 			return
 		case msg, ok := <-s.in:
 			if !ok {
-				panic("channel closed")
+				slog.Error("log sink: channel closed")
+				return
 			}
-			event := msg.(events.Event)
+			event, ok := msg.(events.Event)
 			if !ok {
-				s.logger.Log(ctx, slog.LevelWarn, "invalid event", "event", msg)
-				panic("invalid event")
+				s.logger.Log(ctx, slog.LevelWarn, "log sink: invalid event type", "event", msg)
+				continue
 			}
 
 			args := []any{}

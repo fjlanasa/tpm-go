@@ -2,8 +2,9 @@ package sources
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -16,29 +17,30 @@ type HTTPClient interface {
 	Get(url string) (*http.Response, error)
 }
 
-type HttpSource struct {
-	ctx    context.Context
-	cfg    config.HTTPSourceConfig
-	client HTTPClient
-	out    chan any
+type HTTPSource struct {
+	ctx      context.Context
+	cfg      config.HTTPSourceConfig
+	client   HTTPClient
+	out      chan any
+	interval time.Duration
 }
 
-func NewHttpSource(ctx context.Context, cfg config.HTTPSourceConfig, client ...HTTPClient) *HttpSource {
+func NewHTTPSource(ctx context.Context, cfg config.HTTPSourceConfig, client ...HTTPClient) (*HTTPSource, error) {
 	var c HTTPClient = http.DefaultClient
 	if len(client) > 0 && client[0] != nil {
 		c = client[0]
 	}
-	source := &HttpSource{ctx: ctx, cfg: cfg, client: c, out: make(chan any)}
+	duration, err := time.ParseDuration(cfg.Interval)
+	if err != nil {
+		return nil, fmt.Errorf("invalid polling interval %q: %w", cfg.Interval, err)
+	}
+	source := &HTTPSource{ctx: ctx, cfg: cfg, client: c, out: make(chan any), interval: duration}
 	go source.init()
-	return source
+	return source, nil
 }
 
-func (s *HttpSource) init() {
-	duration, err := time.ParseDuration(s.cfg.Interval)
-	if err != nil {
-		log.Fatal(err)
-	}
-	ticker := time.NewTicker(duration)
+func (s *HTTPSource) init() {
+	ticker := time.NewTicker(s.interval)
 
 	for {
 		select {
@@ -47,25 +49,27 @@ func (s *HttpSource) init() {
 		case <-ticker.C:
 			resp, err := s.client.Get(s.cfg.URL)
 			if err != nil {
-				log.Fatal(err)
+				slog.Error("http source: request failed", "url", s.cfg.URL, "error", err)
+				continue
 			}
 			body, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
 			if err != nil {
-				log.Fatal(err)
+				slog.Error("http source: failed to read response body", "url", s.cfg.URL, "error", err)
+				continue
 			}
 			s.out <- body
-			_ = resp.Body.Close()
 		}
 	}
 
 }
 
-func (s *HttpSource) Via(operator streams.Flow) streams.Flow {
+func (s *HTTPSource) Via(operator streams.Flow) streams.Flow {
 	flow.DoStream(s, operator)
 	return operator
 }
 
-func (s *HttpSource) Out() <-chan any {
+func (s *HTTPSource) Out() <-chan any {
 	return s.out
 }
 
