@@ -53,7 +53,7 @@ func (s *HTTPSource) init() {
 				continue
 			}
 			body, err := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if err != nil {
 				slog.Error("http source: failed to read response body", "url", s.cfg.URL, "error", err)
 				continue

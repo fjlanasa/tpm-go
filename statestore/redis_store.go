@@ -60,5 +60,5 @@ func (s *RedisStateStore) Delete(key string) {
 }
 
 func (s *RedisStateStore) Close() {
-	s.client.Close()
+	_ = s.client.Close()
 }
