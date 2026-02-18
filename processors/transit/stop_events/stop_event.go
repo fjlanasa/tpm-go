@@ -86,7 +86,7 @@ func (s *StopEventProcessor) makeStopEvent(vp *pb.VehiclePositionEvent, stopID s
 			AgencyId:     vp.GetAttributes().GetAgencyId(),
 			RouteId:      vp.GetAttributes().GetRouteId(),
 			StopId:       stopID,
-			DirectionId:  vp.GetAttributes().GetDirection(),
+			DirectionId:  vp.GetAttributes().GetDirectionId(),
 			StopSequence: int32(vp.GetAttributes().GetStopSequence()),
 			TripId:       vp.GetAttributes().GetTripId(),
 			ServiceDate:  vp.GetAttributes().GetServiceDate(),

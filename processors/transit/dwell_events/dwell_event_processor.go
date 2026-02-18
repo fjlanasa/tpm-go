@@ -84,6 +84,7 @@ func (d *DwellEventProcessor) transmit(inlet streams.Inlet) {
 	for element := range d.Out() {
 		inlet.In() <- element
 	}
+	close(inlet.In())
 }
 
 func (d *DwellEventProcessor) process(event *pb.StopEvent) {

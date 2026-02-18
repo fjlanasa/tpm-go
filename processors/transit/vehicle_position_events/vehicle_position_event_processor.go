@@ -47,11 +47,15 @@ func (v *VehiclePositionEventProcessor) transmit(inlet streams.Inlet) {
 }
 
 func (v *VehiclePositionEventProcessor) doStream(ctx context.Context) {
+	defer close(v.out)
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case event := <-v.in:
+		case event, ok := <-v.in:
+			if !ok {
+				return
+			}
 			if feedMessageEvent, ok := event.(*pb.FeedMessageEvent); ok {
 				agencyId := feedMessageEvent.GetAgencyId()
 				if feedMessage := feedMessageEvent.GetFeedMessage(); feedMessage != nil {
