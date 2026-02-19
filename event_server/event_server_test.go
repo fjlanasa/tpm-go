@@ -229,7 +229,7 @@ func TestSSEEndpointDeliversEvent(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		scanner := bufio.NewScanner(resp.Body)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -275,7 +275,7 @@ func TestSSEEndpointFiltersByQueryParam(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		scanner := bufio.NewScanner(resp.Body)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -331,7 +331,7 @@ func TestSSEClientDisconnectCleanup(t *testing.T) {
 		if err != nil {
 			return
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	// Wait for client to register
