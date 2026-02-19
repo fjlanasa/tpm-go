@@ -3,6 +3,7 @@ package sources
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"testing"
@@ -20,6 +21,13 @@ type mockHTTPClient struct {
 
 func (m *mockHTTPClient) Get(url string) (*http.Response, error) {
 	return m.response, m.err
+}
+
+// errorReader is an io.Reader that always returns an error.
+type errorReader struct{}
+
+func (e *errorReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("read error")
 }
 
 func createMockFeedMessage() []byte {
@@ -44,6 +52,105 @@ func createMockFeedMessage() []byte {
 	}
 	data, _ := proto.Marshal(feed)
 	return data
+}
+
+func TestHTTPSourceInvalidInterval(t *testing.T) {
+	_, err := NewHTTPSource(context.Background(), config.HTTPSourceConfig{
+		URL:      "http://test.com",
+		Interval: "not-a-duration",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid interval, got nil")
+	}
+}
+
+func TestHTTPSourceNetworkError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Client always returns a network error.
+	client := &mockHTTPClient{err: errors.New("connection refused")}
+
+	source, err := NewHTTPSource(ctx, config.HTTPSourceConfig{
+		URL:      "http://test.com",
+		Interval: "50ms",
+	}, client)
+	if err != nil {
+		t.Fatalf("NewHTTPSource() error = %v", err)
+	}
+
+	// Wait long enough for a couple of poll attempts; source should not panic
+	// and nothing should arrive on the output channel.
+	select {
+	case msg := <-source.Out():
+		t.Errorf("unexpected message on error: %v", msg)
+	case <-time.After(200 * time.Millisecond):
+		// expected: no message delivered
+	}
+}
+
+func TestHTTPSourceBodyReadError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Client returns a response whose body always errors on read.
+	client := &mockHTTPClient{
+		response: &http.Response{
+			Body: io.NopCloser(&errorReader{}),
+		},
+	}
+
+	source, err := NewHTTPSource(ctx, config.HTTPSourceConfig{
+		URL:      "http://test.com",
+		Interval: "50ms",
+	}, client)
+	if err != nil {
+		t.Fatalf("NewHTTPSource() error = %v", err)
+	}
+
+	// Source should log the error and continue without delivering a message.
+	select {
+	case msg := <-source.Out():
+		t.Errorf("unexpected message on body read error: %v", msg)
+	case <-time.After(200 * time.Millisecond):
+		// expected: no message delivered
+	}
+}
+
+func TestHTTPSourceContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	mockResponse := &http.Response{
+		Body: io.NopCloser(bytes.NewReader(createMockFeedMessage())),
+	}
+	client := &mockHTTPClient{response: mockResponse}
+
+	source, err := NewHTTPSource(ctx, config.HTTPSourceConfig{
+		URL:      "http://test.com",
+		Interval: "50ms",
+	}, client)
+	if err != nil {
+		t.Fatalf("NewHTTPSource() error = %v", err)
+	}
+
+	// Cancel the context to stop the source goroutine.
+	cancel()
+	time.Sleep(100 * time.Millisecond)
+
+	// After cancellation the source should stop emitting; drain any buffered
+	// message then verify no further messages arrive.
+	select {
+	case <-source.Out():
+		// drain one buffered message if it was already sent
+	default:
+	}
+
+	select {
+	case msg := <-source.Out():
+		t.Errorf("got unexpected message after context cancel: %v", msg)
+	case <-time.After(150 * time.Millisecond):
+		// expected: source stopped
+	}
 }
 
 func TestVehiclePositionsSource(t *testing.T) {

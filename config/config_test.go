@@ -110,6 +110,157 @@ func TestReadGraphConfigInvalidPath(t *testing.T) {
 	}
 }
 
+// --- Validate() unit tests ---
+
+func makeValidGraphConfig() *GraphConfig {
+	return &GraphConfig{
+		Sources: map[ID]SourceConfig{
+			"src1": {
+				Type: SourceTypeHTTP,
+				HTTP: HTTPSourceConfig{URL: "http://example.com/feed", Interval: "10s"},
+			},
+		},
+		Sinks: map[ID]SinkConfig{
+			"sink1": {Type: SinkTypeConsole},
+		},
+		Connectors:  map[ID]interface{}{},
+		StateStores: map[ID]StateStoreConfig{},
+		Pipelines: map[ID]PipelineConfig{
+			"pipe1": {
+				ID:      "pipe1",
+				Type:    PipelineTypeVehiclePosition,
+				Sources: []ID{"src1"},
+				Sinks:   []ID{"sink1"},
+			},
+		},
+	}
+}
+
+func TestValidateValidConfig(t *testing.T) {
+	cfg := makeValidGraphConfig()
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("Validate() returned unexpected error: %v", err)
+	}
+}
+
+func TestValidateHTTPSourceMissingURL(t *testing.T) {
+	cfg := makeValidGraphConfig()
+	cfg.Sources["src1"] = SourceConfig{
+		Type: SourceTypeHTTP,
+		HTTP: HTTPSourceConfig{URL: "", Interval: "10s"},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() expected error for missing HTTP URL, got nil")
+	}
+}
+
+func TestValidateHTTPSourceMissingInterval(t *testing.T) {
+	cfg := makeValidGraphConfig()
+	cfg.Sources["src1"] = SourceConfig{
+		Type: SourceTypeHTTP,
+		HTTP: HTTPSourceConfig{URL: "http://example.com", Interval: ""},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() expected error for missing HTTP interval, got nil")
+	}
+}
+
+func TestValidateHTTPSourceInvalidInterval(t *testing.T) {
+	cfg := makeValidGraphConfig()
+	cfg.Sources["src1"] = SourceConfig{
+		Type: SourceTypeHTTP,
+		HTTP: HTTPSourceConfig{URL: "http://example.com", Interval: "not-a-duration"},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() expected error for invalid HTTP interval, got nil")
+	}
+}
+
+func TestValidatePipelineInvalidType(t *testing.T) {
+	cfg := makeValidGraphConfig()
+	cfg.Pipelines["pipe1"] = PipelineConfig{
+		ID:      "pipe1",
+		Type:    "invalid_type",
+		Sources: []ID{"src1"},
+		Sinks:   []ID{"sink1"},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() expected error for invalid pipeline type, got nil")
+	}
+}
+
+func TestValidatePipelineNoSources(t *testing.T) {
+	cfg := makeValidGraphConfig()
+	cfg.Pipelines["pipe1"] = PipelineConfig{
+		ID:      "pipe1",
+		Type:    PipelineTypeVehiclePosition,
+		Sources: []ID{},
+		Sinks:   []ID{"sink1"},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() expected error for pipeline with no sources, got nil")
+	}
+}
+
+func TestValidatePipelineNoSinks(t *testing.T) {
+	cfg := makeValidGraphConfig()
+	cfg.Pipelines["pipe1"] = PipelineConfig{
+		ID:      "pipe1",
+		Type:    PipelineTypeVehiclePosition,
+		Sources: []ID{"src1"},
+		Sinks:   []ID{},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() expected error for pipeline with no sinks, got nil")
+	}
+}
+
+func TestValidatePipelineUnknownSource(t *testing.T) {
+	cfg := makeValidGraphConfig()
+	cfg.Pipelines["pipe1"] = PipelineConfig{
+		ID:      "pipe1",
+		Type:    PipelineTypeVehiclePosition,
+		Sources: []ID{"nonexistent-source"},
+		Sinks:   []ID{"sink1"},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() expected error for pipeline referencing unknown source, got nil")
+	}
+}
+
+func TestValidatePipelineUnknownSink(t *testing.T) {
+	cfg := makeValidGraphConfig()
+	cfg.Pipelines["pipe1"] = PipelineConfig{
+		ID:      "pipe1",
+		Type:    PipelineTypeVehiclePosition,
+		Sources: []ID{"src1"},
+		Sinks:   []ID{"nonexistent-sink"},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() expected error for pipeline referencing unknown sink, got nil")
+	}
+}
+
+func TestValidateConnectorCountsAsSourceAndSink(t *testing.T) {
+	cfg := &GraphConfig{
+		Sources:     map[ID]SourceConfig{},
+		Sinks:       map[ID]SinkConfig{},
+		Connectors:  map[ID]interface{}{"connector1": nil},
+		StateStores: map[ID]StateStoreConfig{},
+		Pipelines: map[ID]PipelineConfig{
+			"pipe1": {
+				ID:      "pipe1",
+				Type:    PipelineTypeFeedMessage,
+				Sources: []ID{"connector1"},
+				Sinks:   []ID{"connector1"},
+			},
+		},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("Validate() unexpected error when using connector as source and sink: %v", err)
+	}
+}
+
 func TestReadConfigInvalidYAML(t *testing.T) {
 	// Create a temporary file with invalid YAML
 	tmpfile, err := os.CreateTemp("", "config-*.yaml")

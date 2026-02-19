@@ -23,6 +23,58 @@ func createStopEvent(vehicleID, stopID, routeID string, eventType pb.StopEvent_E
 	}
 }
 
+func TestDwellEventProcessorNonStopEventInput(t *testing.T) {
+	flow := NewDwellEventProcessor(context.Background(), nil)
+	results := make([]*pb.DwellTimeEvent, 0)
+	done := make(chan bool)
+
+	go func() {
+		for event := range flow.Out() {
+			if de, ok := event.(*pb.DwellTimeEvent); ok {
+				results = append(results, de)
+			}
+		}
+		done <- true
+	}()
+
+	// Non-StopEvent values should be silently dropped.
+	flow.In() <- "not a stop event"
+	flow.In() <- 42
+	flow.In() <- &pb.VehiclePositionEvent{}
+	close(flow.In())
+
+	<-done
+
+	if len(results) != 0 {
+		t.Errorf("got %d dwell events for invalid input types, want 0", len(results))
+	}
+}
+
+func TestDwellEventProcessorDepartureWithoutArrival(t *testing.T) {
+	// A departure without a preceding arrival should produce no dwell event.
+	flow := NewDwellEventProcessor(context.Background(), nil)
+	results := make([]*pb.DwellTimeEvent, 0)
+	done := make(chan bool)
+
+	go func() {
+		for event := range flow.Out() {
+			if de, ok := event.(*pb.DwellTimeEvent); ok {
+				results = append(results, de)
+			}
+		}
+		done <- true
+	}()
+
+	flow.In() <- createStopEvent("v1", "s1", "Red", pb.StopEvent_DEPARTURE, time.Unix(1060, 0))
+	close(flow.In())
+
+	<-done
+
+	if len(results) != 0 {
+		t.Errorf("got %d dwell events for departure without arrival, want 0", len(results))
+	}
+}
+
 func TestDwellEventProcessor(t *testing.T) {
 	tests := []struct {
 		name     string
