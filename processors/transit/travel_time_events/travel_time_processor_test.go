@@ -9,6 +9,59 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func TestTravelTimeEventProcessorNonStopEventInput(t *testing.T) {
+	flow := NewTravelTimeEventProcessor(context.Background(), nil)
+	results := make([]*pb.TravelTimeEvent, 0)
+	done := make(chan bool)
+
+	go func() {
+		for event := range flow.Out() {
+			if te, ok := event.(*pb.TravelTimeEvent); ok {
+				results = append(results, te)
+			}
+		}
+		done <- true
+	}()
+
+	// Non-StopEvent values should be silently dropped.
+	flow.In() <- "not a stop event"
+	flow.In() <- 42
+	flow.In() <- &pb.VehiclePositionEvent{}
+	close(flow.In())
+
+	<-done
+
+	if len(results) != 0 {
+		t.Errorf("got %d travel time events for invalid input types, want 0", len(results))
+	}
+}
+
+func TestTravelTimeEventProcessorSingleArrival(t *testing.T) {
+	// A single arrival with no preceding arrival for the same trip should produce
+	// no travel time event.
+	flow := NewTravelTimeEventProcessor(context.Background(), nil)
+	results := make([]*pb.TravelTimeEvent, 0)
+	done := make(chan bool)
+
+	go func() {
+		for event := range flow.Out() {
+			if te, ok := event.(*pb.TravelTimeEvent); ok {
+				results = append(results, te)
+			}
+		}
+		done <- true
+	}()
+
+	flow.In() <- createTravelStopEvent("v1", "t1", "s1", "Red", "0", 1, time.Unix(1000, 0))
+	close(flow.In())
+
+	<-done
+
+	if len(results) != 0 {
+		t.Errorf("got %d travel time events for single arrival, want 0", len(results))
+	}
+}
+
 func createTravelStopEvent(vehicleID, tripID, stopID, routeID string, directionID string, sequence int32, timestamp time.Time) *pb.StopEvent {
 	return &pb.StopEvent{
 		Attributes: &pb.EventAttributes{

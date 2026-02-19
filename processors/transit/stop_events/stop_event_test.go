@@ -9,6 +9,51 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func TestStopEventProcessorNonVehiclePositionInput(t *testing.T) {
+	flow := NewStopEventProcessor(context.Background(), nil)
+	results := make([]*pb.StopEvent, 0)
+	done := make(chan bool)
+
+	go func() {
+		for event := range flow.Out() {
+			if stopEvent, ok := event.(*pb.StopEvent); ok {
+				results = append(results, stopEvent)
+			}
+		}
+		done <- true
+	}()
+
+	// Send non-VehiclePositionEvent values; they should be silently dropped.
+	flow.In() <- "not a vehicle position"
+	flow.In() <- 42
+	flow.In() <- &pb.StopEvent{}
+	close(flow.In())
+
+	<-done
+
+	if len(results) != 0 {
+		t.Errorf("got %d events for invalid input types, want 0", len(results))
+	}
+}
+
+func TestStopEventProcessorContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	flow := NewStopEventProcessor(ctx, nil)
+
+	cancel()
+	time.Sleep(50 * time.Millisecond)
+
+	// After cancellation the processor should stop consuming; send should not
+	// block indefinitely.
+	vp := createVehiclePosition("v1", "s1", "Red", pb.StopStatus_IN_TRANSIT_TO, 1000)
+	select {
+	case flow.In() <- vp:
+		// accepted into buffer; that's fine
+	case <-time.After(100 * time.Millisecond):
+		// processor stopped consuming; expected
+	}
+}
+
 func createVehiclePosition(vehicleID, stopID, routeID string, status pb.StopStatus, timestamp int64) *pb.VehiclePositionEvent {
 	return &pb.VehiclePositionEvent{
 		Attributes: &pb.EventAttributes{

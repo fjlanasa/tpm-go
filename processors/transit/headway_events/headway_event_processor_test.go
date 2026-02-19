@@ -9,6 +9,58 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func TestHeadwayEventProcessorNonStopEventInput(t *testing.T) {
+	flow := NewHeadwayEventProcessor(context.Background(), nil)
+	results := make([]*pb.HeadwayTimeEvent, 0)
+	done := make(chan bool)
+
+	go func() {
+		for event := range flow.Out() {
+			if he, ok := event.(*pb.HeadwayTimeEvent); ok {
+				results = append(results, he)
+			}
+		}
+		done <- true
+	}()
+
+	// Non-StopEvent values should be silently dropped.
+	flow.In() <- "not a stop event"
+	flow.In() <- 42
+	flow.In() <- &pb.VehiclePositionEvent{}
+	close(flow.In())
+
+	<-done
+
+	if len(results) != 0 {
+		t.Errorf("got %d headway events for invalid input types, want 0", len(results))
+	}
+}
+
+func TestHeadwayEventProcessorSingleDeparture(t *testing.T) {
+	// A single departure with no preceding departure should produce no headway event.
+	flow := NewHeadwayEventProcessor(context.Background(), nil)
+	results := make([]*pb.HeadwayTimeEvent, 0)
+	done := make(chan bool)
+
+	go func() {
+		for event := range flow.Out() {
+			if he, ok := event.(*pb.HeadwayTimeEvent); ok {
+				results = append(results, he)
+			}
+		}
+		done <- true
+	}()
+
+	flow.In() <- createHeadwayStopEvent("v1", "s1", "Red", "0", pb.StopEvent_DEPARTURE, time.Unix(1000, 0))
+	close(flow.In())
+
+	<-done
+
+	if len(results) != 0 {
+		t.Errorf("got %d headway events for single departure, want 0", len(results))
+	}
+}
+
 func createHeadwayStopEvent(vehicleID, stopID, routeID string, directionID string, eventType pb.StopEvent_EventType, timestamp time.Time) *pb.StopEvent {
 	return &pb.StopEvent{
 		Attributes: &pb.EventAttributes{
