@@ -71,14 +71,14 @@ func (s *StopEventProcessor) transmit(inlet streams.Inlet) {
 
 func (s *StopEventProcessor) makeStopEvent(vp *pb.VehiclePositionEvent, stopID string, eventType pb.StopEvent_EventType) *pb.StopEvent {
 	if vp == nil {
-		fmt.Println("Warning: nil VehiclePosition")
+		slog.Warn("nil VehiclePosition in makeStopEvent")
 		return nil
 	}
 
 	vehicleID := vp.GetAttributes().GetVehicleId()
 
 	if vehicleID == "" || stopID == "" {
-		fmt.Printf("Warning: missing required fields - vehicleID: %s, stopID: %s\n", vehicleID, stopID)
+		slog.Warn("missing required fields in makeStopEvent", "vehicleID", vehicleID, "stopID", stopID)
 		return nil
 	}
 	return &pb.StopEvent{
@@ -170,13 +170,20 @@ func (s *StopEventProcessor) process(event *pb.VehiclePositionEvent) {
 	case pb.StopStatus_STOPPED_AT:
 		if prevAttrs.GetStopStatus() == pb.StopStatus_IN_TRANSIT_TO || prevAttrs.GetStopStatus() == pb.StopStatus_INCOMING_AT {
 			s.out <- s.makeStopEvent(event, attrs.GetStopId(), pb.StopEvent_ARRIVAL)
+		} else if prevAttrs.GetStopStatus() == pb.StopStatus_STOPPED_AT &&
+			prevAttrs.GetStopId() != attrs.GetStopId() {
+			// Jumped from STOPPED_AT one stop to STOPPED_AT another (skipped transit phase)
+			s.out <- s.makeStopEvent(event, prevAttrs.GetStopId(), pb.StopEvent_DEPARTURE)
+			s.out <- s.makeStopEvent(event, attrs.GetStopId(), pb.StopEvent_ARRIVAL)
 		}
 	case pb.StopStatus_IN_TRANSIT_TO:
 		if prevAttrs.GetStopStatus() == pb.StopStatus_STOPPED_AT {
 			s.out <- s.makeStopEvent(event, prevAttrs.GetStopId(), pb.StopEvent_DEPARTURE)
-		} else if prevAttrs.GetStopStatus() == pb.StopStatus_IN_TRANSIT_TO &&
+		} else if (prevAttrs.GetStopStatus() == pb.StopStatus_IN_TRANSIT_TO ||
+			prevAttrs.GetStopStatus() == pb.StopStatus_INCOMING_AT) &&
 			prevAttrs.GetStopId() != attrs.GetStopId() {
-			s.out <- s.makeStopEvent(previous, prevAttrs.GetStopId(), pb.StopEvent_ARRIVAL)
+			// Stop changed while in transit or incoming — synthesize arrival + departure
+			s.out <- s.makeStopEvent(event, prevAttrs.GetStopId(), pb.StopEvent_ARRIVAL)
 			s.out <- s.makeStopEvent(event, prevAttrs.GetStopId(), pb.StopEvent_DEPARTURE)
 		}
 	}

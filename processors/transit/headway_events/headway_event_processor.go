@@ -3,6 +3,7 @@ package processors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
@@ -45,7 +46,7 @@ func NewHeadwayEventProcessor(ctx context.Context, stateStore statestore.StateSt
 		out:           make(chan any),
 		headwayStates: headwayStates,
 	}
-	go flow.doStream()
+	go flow.doStream(ctx)
 	return flow
 }
 
@@ -87,10 +88,16 @@ func (f *HeadwayEventProcessor) process(event *pb.StopEvent) {
 	state, found := f.headwayStates.Get(key.String(), func() proto.Message {
 		return &pb.StopEvent{}
 	})
-	// this should be a pb.StopEvent
-	stopEvent := state.(*pb.StopEvent)
+
+	stopEvent, ok := state.(*pb.StopEvent)
+	if !ok || stopEvent == nil {
+		slog.Warn("headway state type assertion failed", "key", key.String())
+		_ = f.headwayStates.Set(key.String(), event, time.Hour)
+		return
+	}
+
 	if !found {
-		// First arrival at this stop/route/direction
+		// First departure at this stop/route/direction
 		_ = f.headwayStates.Set(key.String(), event, time.Hour)
 		return
 	}
@@ -104,6 +111,14 @@ func (f *HeadwayEventProcessor) process(event *pb.StopEvent) {
 	currentTime := event.GetAttributes().GetTimestamp().AsTime()
 	lastTime := stopEvent.GetAttributes().GetTimestamp().AsTime()
 	headwaySeconds := int32(currentTime.Sub(lastTime).Seconds())
+
+	if headwaySeconds <= 0 {
+		slog.Warn("non-positive headway, skipping",
+			"headway_seconds", headwaySeconds,
+			"vehicle", event.GetAttributes().GetVehicleId(),
+			"stop", event.GetAttributes().GetStopId())
+		return
+	}
 
 	headwayEvent := &pb.HeadwayTimeEvent{
 		Attributes: &pb.EventAttributes{
@@ -126,12 +141,20 @@ func (f *HeadwayEventProcessor) process(event *pb.StopEvent) {
 	f.out <- headwayEvent
 }
 
-func (f *HeadwayEventProcessor) doStream() {
+func (f *HeadwayEventProcessor) doStream(ctx context.Context) {
 	defer close(f.out)
 
-	for event := range f.in {
-		if stopEvent, ok := event.(*pb.StopEvent); ok {
-			f.process(stopEvent)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-f.in:
+			if !ok {
+				return
+			}
+			if stopEvent, ok := event.(*pb.StopEvent); ok {
+				f.process(stopEvent)
+			}
 		}
 	}
 }

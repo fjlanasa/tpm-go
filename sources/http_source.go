@@ -52,6 +52,13 @@ func (s *HTTPSource) init() {
 				slog.Error("http source: request failed", "url", s.cfg.URL, "error", err)
 				continue
 			}
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				slog.Error("http source: non-success status code",
+					"url", s.cfg.URL,
+					"status", resp.StatusCode)
+				_ = resp.Body.Close()
+				continue
+			}
 			body, err := io.ReadAll(resp.Body)
 			_ = resp.Body.Close()
 			if err != nil {
@@ -61,7 +68,6 @@ func (s *HTTPSource) init() {
 			s.out <- body
 		}
 	}
-
 }
 
 func (s *HTTPSource) Via(operator streams.Flow) streams.Flow {
@@ -72,4 +78,3 @@ func (s *HTTPSource) Via(operator streams.Flow) streams.Flow {
 func (s *HTTPSource) Out() <-chan any {
 	return s.out
 }
-

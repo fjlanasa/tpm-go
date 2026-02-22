@@ -3,6 +3,7 @@ package processors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
@@ -10,6 +11,7 @@ import (
 	"github.com/fjlanasa/tpm-go/statestore"
 	"github.com/reugn/go-streams"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type tripKey struct {
@@ -47,7 +49,7 @@ func NewTravelTimeEventProcessor(ctx context.Context, stateStore statestore.Stat
 		out:        make(chan any),
 		tripStates: tripStates,
 	}
-	go flow.doStream()
+	go flow.doStream(ctx)
 	return flow
 }
 
@@ -92,10 +94,29 @@ func (f *TravelTimeEventProcessor) process(event *pb.StopEvent) {
 	previousArrival, found := f.tripStates.Get(key.String(), func() proto.Message {
 		return &pb.StopEvent{}
 	})
+
 	if found {
-		prev := previousArrival.(*pb.StopEvent)
+		prev, ok := previousArrival.(*pb.StopEvent)
+		if !ok || prev == nil {
+			slog.Warn("travel time state type assertion failed", "key", key.String())
+			_ = f.tripStates.Set(key.String(), currentArrival, time.Hour)
+			return
+		}
+
 		if prev.GetAttributes().GetStopId() != currentArrival.GetAttributes().GetStopId() {
-			travelSeconds := int32(currentArrival.GetAttributes().GetTimestamp().AsTime().Sub(prev.GetAttributes().GetTimestamp().AsTime()).Seconds())
+			startTime := prev.GetAttributes().GetTimestamp().AsTime()
+			endTime := currentArrival.GetAttributes().GetTimestamp().AsTime()
+			travelSeconds := int32(endTime.Sub(startTime).Seconds())
+
+			if travelSeconds <= 0 {
+				slog.Warn("non-positive travel time, skipping",
+					"travel_seconds", travelSeconds,
+					"vehicle", event.GetAttributes().GetVehicleId(),
+					"origin", prev.GetAttributes().GetStopId(),
+					"destination", currentArrival.GetAttributes().GetStopId())
+				_ = f.tripStates.Set(key.String(), currentArrival, time.Hour)
+				return
+			}
 
 			f.out <- &pb.TravelTimeEvent{
 				Attributes: &pb.EventAttributes{
@@ -104,27 +125,44 @@ func (f *TravelTimeEventProcessor) process(event *pb.StopEvent) {
 					TripId:            event.GetAttributes().GetTripId(),
 					DirectionId:       event.GetAttributes().GetDirectionId(),
 					VehicleId:         event.GetAttributes().GetVehicleId(),
+					ServiceDate:       event.GetAttributes().GetServiceDate(),
 					OriginStopId:      prev.GetAttributes().GetStopId(),
 					DestinationStopId: currentArrival.GetAttributes().GetStopId(),
 					Timestamp:         currentArrival.GetAttributes().GetTimestamp(),
 				},
+				StartTime:         timestamppb.New(startTime),
+				EndTime:           timestamppb.New(endTime),
 				TravelTimeSeconds: travelSeconds,
 			}
-		}
-	}
 
-	_ = f.tripStates.Set(key.String(), currentArrival, time.Hour)
+			// Only update state when stop actually changed
+			_ = f.tripStates.Set(key.String(), currentArrival, time.Hour)
+		}
+		// Do NOT update state for duplicate arrivals at the same stop
+		// to avoid inflated travel times
+	} else {
+		// First arrival for this trip key
+		_ = f.tripStates.Set(key.String(), currentArrival, time.Hour)
+	}
 }
 
-func (f *TravelTimeEventProcessor) doStream() {
+func (f *TravelTimeEventProcessor) doStream(ctx context.Context) {
 	defer close(f.out)
 
-	for event := range f.in {
-		if event == nil {
-			continue
-		}
-		if stopEvent, ok := event.(*pb.StopEvent); ok {
-			f.process(stopEvent)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-f.in:
+			if !ok {
+				return
+			}
+			if event == nil {
+				continue
+			}
+			if stopEvent, ok := event.(*pb.StopEvent); ok {
+				f.process(stopEvent)
+			}
 		}
 	}
 }

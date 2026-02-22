@@ -60,37 +60,49 @@ func (v *VehiclePositionEventProcessor) doStream(ctx context.Context) {
 				agencyId := feedMessageEvent.GetAgencyId()
 				if feedMessage := feedMessageEvent.GetFeedMessage(); feedMessage != nil {
 					for _, entity := range feedMessage.GetEntity() {
+						vehicle := entity.GetVehicle()
+						if vehicle == nil {
+							continue
+						}
+
 						var status pb.StopStatus
-						switch entity.GetVehicle().GetCurrentStatus().Number() {
+						switch vehicle.GetCurrentStatus().Number() {
 						case gtfs.VehiclePosition_IN_TRANSIT_TO.Number():
 							status = pb.StopStatus_IN_TRANSIT_TO
 						case gtfs.VehiclePosition_STOPPED_AT.Number():
 							status = pb.StopStatus_STOPPED_AT
 						case gtfs.VehiclePosition_INCOMING_AT.Number():
 							status = pb.StopStatus_INCOMING_AT
+						default:
+							status = pb.StopStatus_UNKNOWN
 						}
-						vehicle := entity.GetVehicle()
-						if vehicle != nil {
-							vehicleId := vehicle.GetVehicle().GetId()
-							if vehicleId == "" {
-								vehicleId = vehicle.GetTrip().GetTripId()
-							}
-							v.out <- &pb.VehiclePositionEvent{
-								Attributes: &pb.EventAttributes{
-									AgencyId:     agencyId,
-									VehicleId:    vehicleId,
-									RouteId:      vehicle.GetTrip().GetRouteId(),
-									StopId:       vehicle.GetStopId(),
-									TripId:       vehicle.GetTrip().GetTripId(),
-									ServiceDate:  vehicle.GetTrip().GetStartDate(),
-									DirectionId:  strconv.FormatUint(uint64(vehicle.GetTrip().GetDirectionId()), 10),
-									StopSequence: int32(vehicle.GetCurrentStopSequence()),
-									StopStatus:   status,
-									Timestamp:    timestamppb.New(time.Unix(int64(vehicle.GetTimestamp()), 0)),
-								},
-								Latitude:  float64(vehicle.GetPosition().GetLatitude()),
-								Longitude: float64(vehicle.GetPosition().GetLongitude()),
-							}
+
+						stopId := vehicle.GetStopId()
+						if stopId == "" {
+							// Skip vehicles without a stop_id to avoid
+							// meaningless stop events downstream
+							continue
+						}
+
+						vehicleId := vehicle.GetVehicle().GetId()
+						if vehicleId == "" {
+							vehicleId = vehicle.GetTrip().GetTripId()
+						}
+						v.out <- &pb.VehiclePositionEvent{
+							Attributes: &pb.EventAttributes{
+								AgencyId:     agencyId,
+								VehicleId:    vehicleId,
+								RouteId:      vehicle.GetTrip().GetRouteId(),
+								StopId:       stopId,
+								TripId:       vehicle.GetTrip().GetTripId(),
+								ServiceDate:  vehicle.GetTrip().GetStartDate(),
+								DirectionId:  strconv.FormatUint(uint64(vehicle.GetTrip().GetDirectionId()), 10),
+								StopSequence: int32(vehicle.GetCurrentStopSequence()),
+								StopStatus:   status,
+								Timestamp:    timestamppb.New(time.Unix(int64(vehicle.GetTimestamp()), 0)),
+							},
+							Latitude:  float64(vehicle.GetPosition().GetLatitude()),
+							Longitude: float64(vehicle.GetPosition().GetLongitude()),
 						}
 					}
 				}

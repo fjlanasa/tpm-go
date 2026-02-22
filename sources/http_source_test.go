@@ -96,7 +96,8 @@ func TestHTTPSourceBodyReadError(t *testing.T) {
 	// Client returns a response whose body always errors on read.
 	client := &mockHTTPClient{
 		response: &http.Response{
-			Body: io.NopCloser(&errorReader{}),
+			StatusCode: 200,
+			Body:       io.NopCloser(&errorReader{}),
 		},
 	}
 
@@ -121,7 +122,8 @@ func TestHTTPSourceContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mockResponse := &http.Response{
-		Body: io.NopCloser(bytes.NewReader(createMockFeedMessage())),
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewReader(createMockFeedMessage())),
 	}
 	client := &mockHTTPClient{response: mockResponse}
 
@@ -155,7 +157,8 @@ func TestHTTPSourceContextCancellation(t *testing.T) {
 
 func TestVehiclePositionsSource(t *testing.T) {
 	mockResponse := &http.Response{
-		Body: io.NopCloser(bytes.NewReader(createMockFeedMessage())),
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewReader(createMockFeedMessage())),
 	}
 
 	source, err := NewHTTPSource(context.Background(), config.HTTPSourceConfig{

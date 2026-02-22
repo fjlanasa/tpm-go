@@ -23,13 +23,14 @@ func NewFeedMessageProcessor(ctx context.Context, agencyID config.ID) *FeedMessa
 }
 
 func (f *FeedMessageProcessor) doStream(ctx context.Context) {
+	defer close(f.out)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case event, ok := <-f.in:
 			if !ok {
-				close(f.out)
 				return
 			}
 
@@ -38,14 +39,12 @@ func (f *FeedMessageProcessor) doStream(ctx context.Context) {
 			case []uint8:
 				msg := &gtfs.FeedMessage{}
 				if err := proto.Unmarshal(v, msg); err != nil {
-					// You might want to handle this error differently
 					continue
 				}
 				feedMessage = msg
 			case *gtfs.FeedMessage:
 				feedMessage = v
 			default:
-				// You might want to handle unknown types differently
 				continue
 			}
 
