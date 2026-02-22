@@ -14,9 +14,6 @@
 # Generated OpenAPI files
 api/v1/events/transit.events.json
 
-# Generated protobuf files
-**.pb.go
-
 # Dependency directories
 vendor/
 
