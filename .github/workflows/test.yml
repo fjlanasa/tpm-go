@@ -20,9 +20,11 @@ jobs:
 
     - name: Install Protoc
       run: |
-        sudo apt-get update
-        sudo apt-get install -y protobuf-compiler
-        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+        PB_REL="https://github.com/protocolbuffers/protobuf/releases"
+        curl -LO $PB_REL/download/v28.3/protoc-28.3-linux-x86_64.zip
+        unzip protoc-28.3-linux-x86_64.zip -d $HOME/.local
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.2
 
     - name: Check generated code is up to date
       run: make check-generate
