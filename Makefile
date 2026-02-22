@@ -1,4 +1,4 @@
-.PHONY: generate test lint coverage setup
+.PHONY: generate check-generate test lint coverage setup
 
 generate:
 	protoc \
@@ -9,13 +9,20 @@ generate:
 		--go_opt=Mthird_party/gtfs/gtfs-realtime.proto=github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs \
 		api/v1/events/transit.proto
 
+check-generate: generate
+	@if ! git diff --quiet -- '*.pb.go'; then \
+		echo "ERROR: Generated protobuf files are out of date. Run 'make generate' and commit the results."; \
+		git diff -- '*.pb.go'; \
+		exit 1; \
+	fi
+
 generate-openapi:
 	protoc --openapi_out=./api/v1/events/ api/v1/events/transit.proto
 
-test: generate
-	go test -v ./... 
+test:
+	go test -v ./...
 
-run: generate
+run:
 	go run .
 
 run-frontend:
@@ -34,6 +41,6 @@ coverage:
 	go test -race -coverprofile=coverage.out ./... && go tool cover -func=coverage.out
 
 setup:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.2
 	go mod download
 	@echo "Setup complete. Ensure 'protoc' and 'golangci-lint' are installed on your system."
