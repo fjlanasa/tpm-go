@@ -41,6 +41,6 @@ coverage:
 	go test -race -coverprofile=coverage.out ./... && go tool cover -func=coverage.out
 
 setup:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.2
 	go mod download
 	@echo "Setup complete. Ensure 'protoc' and 'golangci-lint' are installed on your system."
