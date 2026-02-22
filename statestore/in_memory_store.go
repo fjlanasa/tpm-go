@@ -10,15 +10,14 @@ import (
 
 type InMemoryState struct {
 	msg        proto.Message
-	ttl        time.Duration
 	expiration time.Time
 }
 
 type InMemoryStateStore struct {
 	ttl    time.Duration
 	states map[string]*InMemoryState
-	mu     sync.RWMutex  // Add mutex for thread safety
-	done   chan struct{} // Add channel for cleanup
+	mu     sync.RWMutex
+	done   chan struct{}
 }
 
 func NewInMemoryStateStore(config config.InMemoryStateStoreConfig) *InMemoryStateStore {
@@ -58,7 +57,6 @@ func (s *InMemoryStateStore) Set(key string, msg proto.Message, ttl time.Duratio
 	}
 	s.states[key] = &InMemoryState{
 		msg:        msg,
-		ttl:        ttl,
 		expiration: time.Now().Add(ttl),
 	}
 	return nil
@@ -75,15 +73,21 @@ func (s *InMemoryStateStore) Close() {
 }
 
 func (s *InMemoryStateStore) expire() {
-	ticker := time.NewTicker(s.ttl)
+	// Sweep at 1/10th of TTL for more responsive cleanup, with a floor of 10s
+	sweepInterval := s.ttl / 10
+	if sweepInterval < 10*time.Second {
+		sweepInterval = 10 * time.Second
+	}
+	ticker := time.NewTicker(sweepInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
 			s.mu.Lock()
+			now := time.Now()
 			for key, state := range s.states {
-				if state.expiration.Before(time.Now()) {
+				if state.expiration.Before(now) {
 					delete(s.states, key)
 				}
 			}

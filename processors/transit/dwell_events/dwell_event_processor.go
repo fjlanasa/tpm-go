@@ -3,6 +3,7 @@ package processors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
@@ -10,6 +11,7 @@ import (
 	"github.com/fjlanasa/tpm-go/statestore"
 	"github.com/reugn/go-streams"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type DwellStopKey struct {
@@ -59,7 +61,7 @@ func NewDwellEventProcessor(ctx context.Context, stateStore statestore.StateStor
 		stateStore: dwellStates,
 	}
 
-	go flow.doStream()
+	go flow.doStream(ctx)
 	return flow
 }
 
@@ -98,17 +100,37 @@ func (d *DwellEventProcessor) process(event *pb.StopEvent) {
 		return &pb.StopEvent{}
 	})
 	if found && event.GetStopEventType() == pb.StopEvent_DEPARTURE {
-		// Calculate dwell time
-		dwellSeconds := int32(event.GetAttributes().GetTimestamp().AsTime().Sub(currentState.(*pb.StopEvent).GetAttributes().GetTimestamp().AsTime()).Seconds())
+		arrivalEvent, ok := currentState.(*pb.StopEvent)
+		if !ok || arrivalEvent == nil {
+			slog.Warn("dwell state type assertion failed", "key", key.String())
+			d.stateStore.Delete(key.String())
+			return
+		}
+
+		arrivalTime := arrivalEvent.GetAttributes().GetTimestamp().AsTime()
+		departureTime := event.GetAttributes().GetTimestamp().AsTime()
+		dwellSeconds := int32(departureTime.Sub(arrivalTime).Seconds())
+
+		if dwellSeconds < 0 {
+			slog.Warn("negative dwell time, skipping",
+				"dwell_seconds", dwellSeconds,
+				"vehicle", event.GetAttributes().GetVehicleId(),
+				"stop", event.GetAttributes().GetStopId())
+			d.stateStore.Delete(key.String())
+			return
+		}
 
 		dwellEvent := &pb.DwellTimeEvent{
 			Attributes: &pb.EventAttributes{
+				AgencyId:    event.GetAttributes().GetAgencyId(),
 				RouteId:     event.GetAttributes().GetRouteId(),
 				StopId:      event.GetAttributes().GetStopId(),
 				DirectionId: event.GetAttributes().GetDirectionId(),
 				VehicleId:   event.GetAttributes().GetVehicleId(),
 				Timestamp:   event.GetAttributes().GetTimestamp(),
 			},
+			ArrivalTime:      timestamppb.New(arrivalTime),
+			DepartureTime:    timestamppb.New(departureTime),
 			DwellTimeSeconds: dwellSeconds,
 		}
 		d.stateStore.Delete(key.String())
@@ -118,12 +140,20 @@ func (d *DwellEventProcessor) process(event *pb.StopEvent) {
 	}
 }
 
-func (d *DwellEventProcessor) doStream() {
+func (d *DwellEventProcessor) doStream(ctx context.Context) {
 	defer close(d.out)
 
-	for event := range d.in {
-		if vp, ok := event.(*pb.StopEvent); ok {
-			d.process(vp)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-d.in:
+			if !ok {
+				return
+			}
+			if vp, ok := event.(*pb.StopEvent); ok {
+				d.process(vp)
+			}
 		}
 	}
 }

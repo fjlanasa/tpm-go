@@ -56,8 +56,12 @@ func NewGraph(ctx context.Context, cfg config.GraphConfig, opts ...GraphOption) 
 
 	sinksByID := make(map[config.ID]sinks.Sink)
 
-	for sinkID, sink := range cfg.Sinks {
-		sinksByID[sinkID] = sinks.NewSink(ctx, sink, connectors)
+	for sinkID, sinkCfg := range cfg.Sinks {
+		sink, err := sinks.NewSink(ctx, sinkCfg, connectors)
+		if err != nil {
+			return nil, fmt.Errorf("sink %q: %w", sinkID, err)
+		}
+		sinksByID[sinkID] = sink
 	}
 
 	stateStoresByID := make(map[config.ID]statestore.StateStore)

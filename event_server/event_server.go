@@ -36,7 +36,7 @@ type Subscriber struct {
 func NewSubscriber(id SubscriberId, subscription map[string]string) *Subscriber {
 	return &Subscriber{
 		ID:           id,
-		Channel:      make(chan any),
+		Channel:      make(chan any, 16),
 		Subscription: subscription,
 	}
 }
@@ -103,18 +103,27 @@ func (es *EventServer) Broadcast(event events.Event) {
 	eventMap := events.GetEventMap(event)
 
 	for _, client := range es.clients {
-		// Check subscription match
+		// Check subscription match: compare filter values as strings
+		// against the string representation of event map values
 		match := true
 		for k, v := range client.Subscription {
-			if v != eventMap[k] {
+			eventVal, exists := eventMap[k]
+			if !exists {
+				match = false
+				break
+			}
+			if v != fmt.Sprintf("%v", eventVal) {
 				match = false
 				break
 			}
 		}
 		if match {
-			fmt.Println("match")
-			fmt.Println(eventMap)
-			client.Channel <- eventMap
+			// Non-blocking send to avoid a slow subscriber stalling the pipeline
+			select {
+			case client.Channel <- eventMap:
+			default:
+				slog.Warn("dropping event for slow subscriber", "subscriber", client.ID)
+			}
 		}
 	}
 }

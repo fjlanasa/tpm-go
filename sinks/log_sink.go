@@ -61,7 +61,7 @@ func (s *LogSink) doSink(ctx context.Context) {
 			logAttrs := events.GetEventMap(event)
 
 			for k, v := range logAttrs {
-				if v != "" {
+				if fmt.Sprintf("%v", v) != "" {
 					args = append(args, k, v)
 				}
 			}
