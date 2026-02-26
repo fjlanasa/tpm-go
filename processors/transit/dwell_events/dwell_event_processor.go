@@ -122,12 +122,15 @@ func (d *DwellEventProcessor) process(event *pb.StopEvent) {
 
 		dwellEvent := &pb.DwellTimeEvent{
 			Attributes: &pb.EventAttributes{
-				AgencyId:    event.GetAttributes().GetAgencyId(),
-				RouteId:     event.GetAttributes().GetRouteId(),
-				StopId:      event.GetAttributes().GetStopId(),
-				DirectionId: event.GetAttributes().GetDirectionId(),
-				VehicleId:   event.GetAttributes().GetVehicleId(),
-				Timestamp:   event.GetAttributes().GetTimestamp(),
+				AgencyId:     event.GetAttributes().GetAgencyId(),
+				RouteId:      event.GetAttributes().GetRouteId(),
+				StopId:       event.GetAttributes().GetStopId(),
+				DirectionId:  event.GetAttributes().GetDirectionId(),
+				VehicleId:    event.GetAttributes().GetVehicleId(),
+				Timestamp:    event.GetAttributes().GetTimestamp(),
+				TripId:       event.GetAttributes().GetTripId(),
+				ServiceDate:  event.GetAttributes().GetServiceDate(),
+				StopSequence: event.GetAttributes().GetStopSequence(),
 			},
 			ArrivalTime:      timestamppb.New(arrivalTime),
 			DepartureTime:    timestamppb.New(departureTime),
