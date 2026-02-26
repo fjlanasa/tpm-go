@@ -122,13 +122,15 @@ func (f *HeadwayEventProcessor) process(event *pb.StopEvent) {
 
 	headwayEvent := &pb.HeadwayTimeEvent{
 		Attributes: &pb.EventAttributes{
-			AgencyId:    event.GetAttributes().GetAgencyId(),
-			RouteId:     event.GetAttributes().GetRouteId(),
-			StopId:      event.GetAttributes().GetStopId(),
-			DirectionId: event.GetAttributes().GetDirectionId(),
-			ServiceDate: event.GetAttributes().GetServiceDate(),
-			Timestamp:   event.GetAttributes().GetTimestamp(),
-			VehicleId:   event.GetAttributes().GetVehicleId(),
+			AgencyId:     event.GetAttributes().GetAgencyId(),
+			RouteId:      event.GetAttributes().GetRouteId(),
+			StopId:       event.GetAttributes().GetStopId(),
+			DirectionId:  event.GetAttributes().GetDirectionId(),
+			ServiceDate:  event.GetAttributes().GetServiceDate(),
+			Timestamp:    event.GetAttributes().GetTimestamp(),
+			VehicleId:    event.GetAttributes().GetVehicleId(),
+			TripId:       event.GetAttributes().GetTripId(),
+			StopSequence: event.GetAttributes().GetStopSequence(),
 		},
 		LeadingVehicleId:   stopEvent.GetAttributes().GetVehicleId(),
 		FollowingVehicleId: event.GetAttributes().GetVehicleId(),

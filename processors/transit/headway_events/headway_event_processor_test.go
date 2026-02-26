@@ -64,11 +64,15 @@ func TestHeadwayEventProcessorSingleDeparture(t *testing.T) {
 func createHeadwayStopEvent(vehicleID, stopID, routeID string, directionID string, eventType pb.StopEvent_EventType, timestamp time.Time) *pb.StopEvent {
 	return &pb.StopEvent{
 		Attributes: &pb.EventAttributes{
-			VehicleId:   vehicleID,
-			StopId:      stopID,
-			RouteId:     routeID,
-			DirectionId: directionID,
-			Timestamp:   timestamppb.New(timestamp),
+			VehicleId:    vehicleID,
+			StopId:       stopID,
+			RouteId:      routeID,
+			DirectionId:  directionID,
+			Timestamp:    timestamppb.New(timestamp),
+			AgencyId:     "agency1",
+			TripId:       "t1",
+			ServiceDate:  "20240101",
+			StopSequence: 2,
 		},
 		StopEventType: eventType,
 	}
@@ -89,10 +93,14 @@ func TestHeadwayEventProcessor(t *testing.T) {
 			expected: []*pb.HeadwayTimeEvent{
 				{
 					Attributes: &pb.EventAttributes{
-						VehicleId:   "v1",
-						StopId:      "s1",
-						RouteId:     "Red",
-						DirectionId: "0",
+						VehicleId:    "v2",
+						StopId:       "s1",
+						RouteId:      "Red",
+						DirectionId:  "0",
+						AgencyId:     "agency1",
+						TripId:       "t1",
+						ServiceDate:  "20240101",
+						StopSequence: 2,
 					},
 					LeadingVehicleId:   "v1",
 					FollowingVehicleId: "v2",
@@ -110,10 +118,14 @@ func TestHeadwayEventProcessor(t *testing.T) {
 			expected: []*pb.HeadwayTimeEvent{
 				{
 					Attributes: &pb.EventAttributes{
-						VehicleId:   "v1",
-						StopId:      "s1",
-						RouteId:     "Red",
-						DirectionId: "0",
+						VehicleId:    "v3",
+						StopId:       "s1",
+						RouteId:      "Red",
+						DirectionId:  "0",
+						AgencyId:     "agency1",
+						TripId:       "t1",
+						ServiceDate:  "20240101",
+						StopSequence: 2,
 					},
 					LeadingVehicleId:   "v1",
 					FollowingVehicleId: "v3",
@@ -131,10 +143,14 @@ func TestHeadwayEventProcessor(t *testing.T) {
 			expected: []*pb.HeadwayTimeEvent{
 				{
 					Attributes: &pb.EventAttributes{
-						VehicleId:   "v1",
-						StopId:      "s1",
-						RouteId:     "Red",
-						DirectionId: "0",
+						VehicleId:    "v2",
+						StopId:       "s1",
+						RouteId:      "Red",
+						DirectionId:  "0",
+						AgencyId:     "agency1",
+						TripId:       "t1",
+						ServiceDate:  "20240101",
+						StopSequence: 2,
 					},
 					LeadingVehicleId:   "v1",
 					FollowingVehicleId: "v2",
@@ -153,10 +169,14 @@ func TestHeadwayEventProcessor(t *testing.T) {
 			expected: []*pb.HeadwayTimeEvent{
 				{
 					Attributes: &pb.EventAttributes{
-						VehicleId:   "v1",
-						StopId:      "s1",
-						RouteId:     "Red",
-						DirectionId: "0",
+						VehicleId:    "v2",
+						StopId:       "s1",
+						RouteId:      "Red",
+						DirectionId:  "0",
+						AgencyId:     "agency1",
+						TripId:       "t1",
+						ServiceDate:  "20240101",
+						StopSequence: 2,
 					},
 					LeadingVehicleId:   "v1",
 					FollowingVehicleId: "v2",
@@ -164,10 +184,14 @@ func TestHeadwayEventProcessor(t *testing.T) {
 				},
 				{
 					Attributes: &pb.EventAttributes{
-						VehicleId:   "v1",
-						StopId:      "s2",
-						RouteId:     "Red",
-						DirectionId: "0",
+						VehicleId:    "v2",
+						StopId:       "s2",
+						RouteId:      "Red",
+						DirectionId:  "0",
+						AgencyId:     "agency1",
+						TripId:       "t1",
+						ServiceDate:  "20240101",
+						StopSequence: 2,
 					},
 					LeadingVehicleId:   "v1",
 					FollowingVehicleId: "v2",
@@ -215,7 +239,11 @@ func TestHeadwayEventProcessor(t *testing.T) {
 					got.LeadingVehicleId != want.LeadingVehicleId ||
 					got.FollowingVehicleId != want.FollowingVehicleId ||
 					got.Attributes.DirectionId != want.Attributes.DirectionId ||
-					got.HeadwaySeconds != want.HeadwaySeconds {
+					got.HeadwaySeconds != want.HeadwaySeconds ||
+					got.Attributes.AgencyId != want.Attributes.AgencyId ||
+					got.Attributes.TripId != want.Attributes.TripId ||
+					got.Attributes.ServiceDate != want.Attributes.ServiceDate ||
+					got.Attributes.StopSequence != want.Attributes.StopSequence {
 					t.Errorf("event %d:\ngot  %+v\nwant %+v", i, got, want)
 				}
 			}

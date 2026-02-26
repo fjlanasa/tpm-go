@@ -92,6 +92,7 @@ func (s *StopEventProcessor) makeStopEvent(vp *pb.VehiclePositionEvent, stopID s
 			ServiceDate:  vp.GetAttributes().GetServiceDate(),
 			Timestamp:    vp.GetAttributes().GetTimestamp(),
 			VehicleId:    vehicleID,
+			StopStatus:   vp.GetAttributes().GetStopStatus(),
 		},
 		StopEventType: eventType,
 	}

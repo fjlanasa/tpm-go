@@ -129,6 +129,7 @@ func (f *TravelTimeEventProcessor) process(event *pb.StopEvent) {
 					OriginStopId:      prev.GetAttributes().GetStopId(),
 					DestinationStopId: currentArrival.GetAttributes().GetStopId(),
 					Timestamp:         currentArrival.GetAttributes().GetTimestamp(),
+					StopSequence:      currentArrival.GetAttributes().GetStopSequence(),
 				},
 				StartTime:         timestamppb.New(startTime),
 				EndTime:           timestamppb.New(endTime),

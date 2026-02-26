@@ -57,11 +57,16 @@ func TestStopEventProcessorContextCancellation(t *testing.T) {
 func createVehiclePosition(vehicleID, stopID, routeID string, status pb.StopStatus, timestamp int64) *pb.VehiclePositionEvent {
 	return &pb.VehiclePositionEvent{
 		Attributes: &pb.EventAttributes{
-			VehicleId:  vehicleID,
-			StopId:     stopID,
-			RouteId:    routeID,
-			StopStatus: status,
-			Timestamp:  timestamppb.New(time.Unix(timestamp, 0)),
+			VehicleId:    vehicleID,
+			StopId:       stopID,
+			RouteId:      routeID,
+			StopStatus:   status,
+			Timestamp:    timestamppb.New(time.Unix(timestamp, 0)),
+			TripId:       "t1",
+			ServiceDate:  "20240101",
+			DirectionId:  "0",
+			StopSequence: 5,
+			AgencyId:     "agency1",
 		},
 	}
 }
@@ -81,9 +86,15 @@ func TestStopEventProcessor(t *testing.T) {
 			expected: []*pb.StopEvent{
 				{
 					Attributes: &pb.EventAttributes{
-						VehicleId: "v1",
-						StopId:    "s1",
-						RouteId:   "Red",
+						VehicleId:    "v1",
+						StopId:       "s1",
+						RouteId:      "Red",
+						TripId:       "t1",
+						ServiceDate:  "20240101",
+						DirectionId:  "0",
+						StopSequence: 5,
+						AgencyId:     "agency1",
+						StopStatus:   pb.StopStatus_STOPPED_AT,
 					},
 					StopEventType: pb.StopEvent_ARRIVAL,
 				},
@@ -98,9 +109,15 @@ func TestStopEventProcessor(t *testing.T) {
 			expected: []*pb.StopEvent{
 				{
 					Attributes: &pb.EventAttributes{
-						VehicleId: "v1",
-						StopId:    "s1",
-						RouteId:   "Red",
+						VehicleId:    "v1",
+						StopId:       "s1",
+						RouteId:      "Red",
+						TripId:       "t1",
+						ServiceDate:  "20240101",
+						DirectionId:  "0",
+						StopSequence: 5,
+						AgencyId:     "agency1",
+						StopStatus:   pb.StopStatus_IN_TRANSIT_TO,
 					},
 					StopEventType: pb.StopEvent_DEPARTURE,
 				},
@@ -115,17 +132,29 @@ func TestStopEventProcessor(t *testing.T) {
 			expected: []*pb.StopEvent{
 				{
 					Attributes: &pb.EventAttributes{
-						VehicleId: "v1",
-						StopId:    "s1",
-						RouteId:   "Red",
+						VehicleId:    "v1",
+						StopId:       "s1",
+						RouteId:      "Red",
+						TripId:       "t1",
+						ServiceDate:  "20240101",
+						DirectionId:  "0",
+						StopSequence: 5,
+						AgencyId:     "agency1",
+						StopStatus:   pb.StopStatus_IN_TRANSIT_TO,
 					},
 					StopEventType: pb.StopEvent_ARRIVAL,
 				},
 				{
 					Attributes: &pb.EventAttributes{
-						VehicleId: "v1",
-						StopId:    "s1",
-						RouteId:   "Red",
+						VehicleId:    "v1",
+						StopId:       "s1",
+						RouteId:      "Red",
+						TripId:       "t1",
+						ServiceDate:  "20240101",
+						DirectionId:  "0",
+						StopSequence: 5,
+						AgencyId:     "agency1",
+						StopStatus:   pb.StopStatus_IN_TRANSIT_TO,
 					},
 					StopEventType: pb.StopEvent_DEPARTURE,
 				},
@@ -179,7 +208,13 @@ func TestStopEventProcessor(t *testing.T) {
 				if got.Attributes.VehicleId != want.Attributes.VehicleId ||
 					got.Attributes.StopId != want.Attributes.StopId ||
 					got.Attributes.RouteId != want.Attributes.RouteId ||
-					got.StopEventType != want.StopEventType {
+					got.StopEventType != want.StopEventType ||
+					got.Attributes.TripId != want.Attributes.TripId ||
+					got.Attributes.ServiceDate != want.Attributes.ServiceDate ||
+					got.Attributes.DirectionId != want.Attributes.DirectionId ||
+					got.Attributes.StopSequence != want.Attributes.StopSequence ||
+					got.Attributes.AgencyId != want.Attributes.AgencyId ||
+					got.Attributes.StopStatus != want.Attributes.StopStatus {
 					t.Errorf("event %d: got %+v, want %+v", i, got, want)
 				}
 			}

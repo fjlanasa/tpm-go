@@ -99,6 +99,7 @@ func TestTravelTimeEventProcessor(t *testing.T) {
 						DestinationStopId: "s2",
 						RouteId:           "Red",
 						DirectionId:       "0",
+						StopSequence:      2,
 					},
 					TravelTimeSeconds: 180,
 				},
@@ -110,6 +111,7 @@ func TestTravelTimeEventProcessor(t *testing.T) {
 						DestinationStopId: "s3",
 						RouteId:           "Red",
 						DirectionId:       "0",
+						StopSequence:      3,
 					},
 					TravelTimeSeconds: 180,
 				},
@@ -131,6 +133,7 @@ func TestTravelTimeEventProcessor(t *testing.T) {
 						DestinationStopId: "s2",
 						RouteId:           "Red",
 						DirectionId:       "0",
+						StopSequence:      2,
 					},
 					TravelTimeSeconds: 180,
 				},
@@ -173,7 +176,8 @@ func TestTravelTimeEventProcessor(t *testing.T) {
 					got.GetAttributes().GetDestinationStopId() != want.GetAttributes().GetDestinationStopId() ||
 					got.GetAttributes().GetRouteId() != want.GetAttributes().GetRouteId() ||
 					got.GetAttributes().GetDirectionId() != want.GetAttributes().GetDirectionId() ||
-					got.TravelTimeSeconds != want.TravelTimeSeconds {
+					got.TravelTimeSeconds != want.TravelTimeSeconds ||
+					got.GetAttributes().GetStopSequence() != want.GetAttributes().GetStopSequence() {
 					t.Errorf("event %d:\ngot  %+v\nwant %+v", i, got, want)
 				}
 			}
