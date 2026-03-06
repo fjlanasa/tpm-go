@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 )
@@ -255,22 +254,7 @@ func (r *tableRows) Next(dest []driver.Value) error {
 	}
 	row := r.rows[r.idx]
 	r.idx++
-	for i, v := range row {
-		dest[i] = v
-	}
+	copy(dest, row)
 	return nil
 }
 
-// ─── scanValue helpers (for test assertions) ──────────────────────────────────
-
-// scanInt scans a driver.Value (int64 or string) into an int.
-func scanInt(v interface{}) (int, error) {
-	switch x := v.(type) {
-	case int64:
-		return int(x), nil
-	case string:
-		return strconv.Atoi(x)
-	default:
-		return 0, fmt.Errorf("scanInt: unexpected type %T", v)
-	}
-}

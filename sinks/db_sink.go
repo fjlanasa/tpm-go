@@ -57,7 +57,7 @@ func NewDatabaseSink(ctx context.Context, cfg config.SinkConfig) (*DatabaseSink,
 		return nil, fmt.Errorf("db sink: open db: %w", err)
 	}
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("db sink: ping db: %w", err)
 	}
 
@@ -90,7 +90,7 @@ func (s *DatabaseSink) doSink(ctx context.Context) {
 	batch := make([]events.Event, 0, s.maxBatchSize)
 	ticker := time.NewTicker(s.flushInterval)
 	defer ticker.Stop()
-	defer s.db.Close()
+	defer func() { _ = s.db.Close() }()
 
 	for {
 		select {

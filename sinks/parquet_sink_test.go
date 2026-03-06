@@ -20,7 +20,7 @@ func readCSVRows(t *testing.T, data []byte) (header []string, records [][]string
 	if err != nil {
 		t.Fatalf("gzip.NewReader: %v", err)
 	}
-	defer gr.Close()
+	defer func() { _ = gr.Close() }()
 	raw, err := io.ReadAll(gr)
 	if err != nil {
 		t.Fatalf("read gzip: %v", err)

@@ -137,7 +137,7 @@ func newTestDatabaseSink(t *testing.T) (*DatabaseSink, *sql.DB) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 
 	createTestSchema(t, db)
 
@@ -316,7 +316,7 @@ func TestDatabaseSinkContextCancellationFlushesRemaining(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	createTestSchema(t, db)
 
 	// Very long flush interval so the flush only happens on cancel.
