@@ -24,6 +24,10 @@ func NewSink(
 		return NewConnectorSink(ctx, cfg.Connector, connectors), nil
 	case config.SinkTypeSSE:
 		return NewSSESink(ctx, cfg.SSE), nil
+	case config.SinkTypeDatabase:
+		return NewDatabaseSink(ctx, cfg)
+	case config.SinkTypeParquet:
+		return NewParquetSink(ctx, cfg)
 	}
 	return nil, fmt.Errorf("unknown sink type: %s", cfg.Type)
 }

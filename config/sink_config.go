@@ -7,7 +7,9 @@ type SinkType string
 const (
 	SinkTypeConnector  SinkType = "connector"
 	SinkTypeConsole    SinkType = "console"
+	SinkTypeDatabase   SinkType = "database"
 	SinkTypeFileSystem SinkType = "file_system"
+	SinkTypeParquet    SinkType = "parquet"
 	SinkTypeRedis      SinkType = "redis"
 	SinkTypeSSE        SinkType = "sse"
 )
@@ -25,6 +27,22 @@ const (
 type BucketSinkConfig struct {
 	URL        string `yaml:"url"`
 	BucketName string `yaml:"bucket_name"`
+}
+
+type DatabaseSinkConfig struct {
+	Driver string `yaml:"driver"` // "postgres" or "sqlite"
+	DSN    string `yaml:"dsn"`    // connection string
+	Schema string `yaml:"schema"` // optional; default "public" for postgres
+}
+
+type ParquetSinkConfig struct {
+	BucketName     string `yaml:"bucket_name"`
+	Prefix         string `yaml:"prefix"`          // key prefix, e.g. "transit/events"
+	EventType      string `yaml:"event_type"`      // used for path partitioning
+	AWSRegion      string `yaml:"aws_region"`      // optional; falls back to env/IAM
+	AWSEndpointURL string `yaml:"aws_endpoint_url"` // optional; for MinIO / LocalStack
+	AWSAccessKey   string `yaml:"aws_access_key"`  // optional explicit creds
+	AWSSecretKey   string `yaml:"aws_secret_key"`
 }
 
 type ConsoleSinkConfig struct {
@@ -67,4 +85,8 @@ type SinkConfig struct {
 	SSE SSESinkConfig `yaml:"sse"`
 	// Connector Channel
 	Connector ConnectorConfig `yaml:"connector"`
+	// Database
+	Database DatabaseSinkConfig `yaml:"database"`
+	// Parquet / S3
+	Parquet ParquetSinkConfig `yaml:"parquet"`
 }
