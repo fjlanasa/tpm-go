@@ -30,7 +30,7 @@ type BucketSinkConfig struct {
 }
 
 type DatabaseSinkConfig struct {
-	Driver string `yaml:"driver"` // "postgres" or "sqlite"
+	Driver string `yaml:"driver"` // "postgres" (default); pass-through for testing
 	DSN    string `yaml:"dsn"`    // connection string
 	Schema string `yaml:"schema"` // optional; default "public" for postgres
 }

@@ -13,23 +13,14 @@ import (
 	"github.com/reugn/go-streams"
 
 	// Register the pgx driver for PostgreSQL (database/sql interface).
-	// SQLite: callers must import their preferred driver, e.g.:
-	//   _ "modernc.org/sqlite"        (pure Go, no CGO)
-	//   _ "github.com/mattn/go-sqlite3" (CGO, widely used)
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// DatabaseSink writes transit metric events to a relational database in batches.
-// Supported driver values in config:
-//   - "postgres" — uses pgx stdlib driver (registered by this package)
-//   - "sqlite"   — caller must import a SQLite driver, e.g. modernc.org/sqlite
-//   - any other string is passed directly to database/sql as the driver name
-//
+// DatabaseSink writes transit metric events to a PostgreSQL database in batches.
 // Tables must be created beforehand using the migration files in db/migrations/.
 type DatabaseSink struct {
 	streams.Sink
 	db            *sql.DB
-	driver        string
 	in            chan any
 	maxBatchSize  int
 	flushInterval time.Duration
@@ -37,20 +28,16 @@ type DatabaseSink struct {
 }
 
 func NewDatabaseSink(ctx context.Context, cfg config.SinkConfig) (*DatabaseSink, error) {
-	driverName := cfg.Database.Driver
-	if driverName == "" {
-		return nil, fmt.Errorf("db sink: driver is required (\"postgres\" or \"sqlite\")")
-	}
 	if cfg.Database.DSN == "" {
 		return nil, fmt.Errorf("db sink: dsn is required")
 	}
 
-	// Map friendly driver names to the registered database/sql driver names.
-	sqlDriverName := driverName
-	if driverName == "postgres" {
+	// Map "postgres" to the pgx stdlib driver; pass other names through
+	// (e.g. "testmemdb" in tests).
+	sqlDriverName := cfg.Database.Driver
+	if sqlDriverName == "" || sqlDriverName == "postgres" {
 		sqlDriverName = "pgx"
 	}
-	// "sqlite" and other names are passed through unchanged.
 
 	db, err := sql.Open(sqlDriverName, cfg.Database.DSN)
 	if err != nil {
@@ -72,7 +59,6 @@ func NewDatabaseSink(ctx context.Context, cfg config.SinkConfig) (*DatabaseSink,
 
 	sink := &DatabaseSink{
 		db:            db,
-		driver:        driverName,
 		in:            make(chan any),
 		maxBatchSize:  maxBatchSize,
 		flushInterval: flushInterval,
@@ -166,22 +152,13 @@ func (s *DatabaseSink) flush(ctx context.Context, batch []events.Event) {
 	}
 }
 
-// placeholder returns a SQL positional placeholder for the given 1-based index.
-// PostgreSQL uses $N; SQLite uses ?.
-func (s *DatabaseSink) placeholder(n int) string {
-	if s.driver == "postgres" {
-		return fmt.Sprintf("$%d", n)
-	}
-	return "?"
-}
-
 func (s *DatabaseSink) buildInsert(table string, cols []string, nRows int) string {
 	nCols := len(cols)
 	rowPH := make([]string, nRows)
 	for i := range nRows {
 		ph := make([]string, nCols)
 		for j := range nCols {
-			ph[j] = s.placeholder(i*nCols + j + 1)
+			ph[j] = fmt.Sprintf("$%d", i*nCols+j+1)
 		}
 		rowPH[i] = "(" + strings.Join(ph, ", ") + ")"
 	}
