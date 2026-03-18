@@ -19,6 +19,8 @@ func NewSource(ctx context.Context, cfg config.SourceConfig, connectors map[conf
 	case config.SourceTypeConnector:
 		source := NewConnectorSource(ctx, cfg.Connector, connectors)
 		return source, nil
+	case config.SourceTypeRedis:
+		return NewRedisSource(ctx, cfg.Redis)
 	}
 	return nil, fmt.Errorf("invalid source type: %s", cfg.Type)
 }
