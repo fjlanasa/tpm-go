@@ -7,43 +7,28 @@ import (
 
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
 	"github.com/fjlanasa/tpm-go/config"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/proto"
 )
 
-func requireRedis(t *testing.T) string {
-	t.Helper()
-	addr := "localhost:6379"
-	client := redis.NewClient(&redis.Options{Addr: addr})
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	if err := client.Ping(ctx).Err(); err != nil {
-		t.Skipf("Redis not available at %s: %v", addr, err)
-	}
-	_ = client.Close()
-	return addr
-}
-
 func TestRedisSinkPublishesEvent(t *testing.T) {
-	addr := requireRedis(t)
+	mr := miniredis.RunT(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	channel := "test-redis-sink-" + t.Name()
+	channel := "test-redis-sink"
 
 	// Subscribe before creating the sink so we don't miss the message.
-	subscriber := redis.NewClient(&redis.Options{Addr: addr})
+	subscriber := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	defer subscriber.Close()
 	pubsub := subscriber.Subscribe(ctx, channel)
 	defer pubsub.Close()
 	msgCh := pubsub.Channel()
 
-	// Give the subscriber time to register.
-	time.Sleep(50 * time.Millisecond)
-
 	sink, err := NewRedisSink(ctx, config.RedisSinkConfig{
-		Addr:    addr,
+		Addr:    mr.Addr(),
 		Channel: channel,
 	})
 	if err != nil {
@@ -68,14 +53,14 @@ func TestRedisSinkPublishesEvent(t *testing.T) {
 }
 
 func TestRedisSinkInvalidTypeSkipped(t *testing.T) {
-	addr := requireRedis(t)
+	mr := miniredis.RunT(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	sink, err := NewRedisSink(ctx, config.RedisSinkConfig{
-		Addr:    addr,
-		Channel: "test-invalid-" + t.Name(),
+		Addr:    mr.Addr(),
+		Channel: "test-invalid",
 	})
 	if err != nil {
 		t.Fatalf("NewRedisSink() error = %v", err)
@@ -96,13 +81,13 @@ func TestRedisSinkInvalidTypeSkipped(t *testing.T) {
 }
 
 func TestRedisSinkContextCancellation(t *testing.T) {
-	addr := requireRedis(t)
+	mr := miniredis.RunT(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	sink, err := NewRedisSink(ctx, config.RedisSinkConfig{
-		Addr:    addr,
-		Channel: "test-cancel-" + t.Name(),
+		Addr:    mr.Addr(),
+		Channel: "test-cancel",
 	})
 	if err != nil {
 		t.Fatalf("NewRedisSink() error = %v", err)

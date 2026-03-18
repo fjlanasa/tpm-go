@@ -5,33 +5,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/fjlanasa/tpm-go/config"
 	"github.com/redis/go-redis/v9"
 )
 
-func requireRedis(t *testing.T) string {
-	t.Helper()
-	addr := "localhost:6379"
-	client := redis.NewClient(&redis.Options{Addr: addr})
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	if err := client.Ping(ctx).Err(); err != nil {
-		t.Skipf("Redis not available at %s: %v", addr, err)
-	}
-	_ = client.Close()
-	return addr
-}
-
 func TestRedisSourceReceivesMessage(t *testing.T) {
-	addr := requireRedis(t)
+	mr := miniredis.RunT(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	channel := "test-redis-source-" + t.Name()
+	channel := "test-redis-source"
 
 	source, err := NewRedisSource(ctx, config.RedisSourceConfig{
-		Addr:    addr,
+		Addr:    mr.Addr(),
 		Channel: channel,
 	})
 	if err != nil {
@@ -41,7 +29,7 @@ func TestRedisSourceReceivesMessage(t *testing.T) {
 	// Give the subscriber goroutine time to register.
 	time.Sleep(50 * time.Millisecond)
 
-	publisher := redis.NewClient(&redis.Options{Addr: addr})
+	publisher := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	defer publisher.Close()
 
 	want := "hello-redis-source"
@@ -61,13 +49,13 @@ func TestRedisSourceReceivesMessage(t *testing.T) {
 }
 
 func TestRedisSourceContextCancellation(t *testing.T) {
-	addr := requireRedis(t)
+	mr := miniredis.RunT(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	source, err := NewRedisSource(ctx, config.RedisSourceConfig{
-		Addr:    addr,
-		Channel: "test-cancel-" + t.Name(),
+		Addr:    mr.Addr(),
+		Channel: "test-cancel",
 	})
 	if err != nil {
 		t.Fatalf("NewRedisSource() error = %v", err)
