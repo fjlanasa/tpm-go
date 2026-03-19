@@ -75,10 +75,14 @@ docker compose --profile distributed up --build
 
 ### Local Development
 
-Prerequisites: Go 1.22+, `protoc` with `protoc-gen-go`, `golangci-lint`
+Prerequisites: Go 1.24+, `protoc` with `protoc-gen-go`, `golangci-lint`
 
 ```bash
-make setup           # Install protoc-gen-go plugin and download Go modules
+# Install prerequisites (macOS)
+brew install go protobuf golangci-lint
+
+# Setup and run
+make setup           # Verify dependencies, install protoc-gen-go, download Go modules
 make generate        # Compile .proto files
 make test            # Run all tests
 make lint            # Run linter
