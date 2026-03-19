@@ -1,33 +1,134 @@
-version: '3'
-
 services:
+  # --- All-in-one profile: single app container runs all 6 pipelines ---
   app:
-    environment:
-      OTEL_EXPORTER_OTLP_ENDPOINT: alloy:4318
     build: .
+    profiles: ["all-in-one"]
+    environment:
+      CONFIG_PATH: ./config/configs/all-in-one.yaml
+      OTEL_EXPORTER_OTLP_ENDPOINT: alloy:4318
     ports:
       - "8080:8080"
     depends_on:
-      - alloy
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      alloy:
+        condition: service_started
+    networks:
+      - tpm
+
+  # --- Distributed profile: ingestion container (feed_message + vehicle_position) ---
+  ingestion:
+    build: .
+    profiles: ["distributed"]
+    environment:
+      CONFIG_PATH: ./config/configs/distributed-ingestion.yaml
+      OTEL_EXPORTER_OTLP_ENDPOINT: alloy:4318
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      alloy:
+        condition: service_started
+    networks:
+      - tpm
+
+  # --- Distributed profile: processing container (stop_event + derived pipelines) ---
+  processing:
+    build: .
+    profiles: ["distributed"]
+    environment:
+      CONFIG_PATH: ./config/configs/distributed-processing.yaml
+      OTEL_EXPORTER_OTLP_ENDPOINT: alloy:4318
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      alloy:
+        condition: service_started
+    networks:
+      - tpm
+
+  # --- Shared infrastructure ---
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["all-in-one", "distributed"]
+    environment:
+      POSTGRES_USER: tpm
+      POSTGRES_PASSWORD: tpm
+      POSTGRES_DB: tpm
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/migrations/001_create_events_tables.postgres.sql:/docker-entrypoint-initdb.d/001_create_events_tables.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tpm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - tpm
 
   minio:
     image: minio/minio:latest
+    profiles: ["all-in-one", "distributed"]
     ports:
       - "9000:9000"
+      - "9001:9001"
     volumes:
-      - ./minio-data:/data
-    command: server /data
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - tpm
 
+  minio-init:
+    image: minio/mc:latest
+    profiles: ["all-in-one", "distributed"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/tpm-events
+      "
+    networks:
+      - tpm
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["distributed"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tpm
+
+  # --- Observability stack ---
   alloy:
     image: grafana/alloy:latest
+    profiles: ["all-in-one", "distributed"]
     ports:
-      - 12345:12345
-      - 4317:4317
-      - 4318:4318
+      - "12345:12345"
+      - "4317:4317"
+      - "4318:4318"
     volumes:
       - ./config.alloy:/etc/alloy/config.alloy
       - ./logs:/tmp/app-logs/
@@ -36,8 +137,10 @@ services:
       - loki
     networks:
       - tpm
+
   loki:
     image: grafana/loki:main
+    profiles: ["all-in-one", "distributed"]
     ports:
       - "3100:3100"
     volumes:
@@ -45,8 +148,10 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - tpm
+
   grafana:
     image: grafana/grafana:latest
+    profiles: ["all-in-one", "distributed"]
     environment:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_ANONYMOUS_ENABLED=true
@@ -54,14 +159,15 @@ services:
       - GF_FEATURE_TOGGLES_ENABLE=accessControlOnCall
       - GF_INSTALL_PLUGINS=https://storage.googleapis.com/integration-artifacts/grafana-lokiexplore-app/grafana-lokiexplore-app-latest.zip;grafana-lokiexplore-app
     ports:
-      - 3000:3000/tcp
+      - "3000:3000"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
     networks:
       - tpm
 
 volumes:
-  loki-data:
+  pgdata:
+  minio-data:
 
 networks:
-    tpm:
+  tpm:

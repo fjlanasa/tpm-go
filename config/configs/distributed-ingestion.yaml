@@ -1,0 +1,42 @@
+graph:
+  connectors:
+    feed-message-connector:
+
+  sources:
+    mbta-vehicle-positions:
+      type: "http"
+      http:
+        url: "https://cdn.mbta.com/realtime/VehiclePositions.pb"
+        interval: "1s"
+
+  sinks:
+    console-sink:
+      type: "console"
+      console:
+        level: "info"
+    sse-sink:
+      type: "sse"
+      sse:
+        port: "8080"
+        path: "/events"
+    redis-vp-sink:
+      type: "redis"
+      redis:
+        addr: "redis:6379"
+        channel: "vehicle-positions"
+
+  pipelines:
+    mbta-feed-message-pipeline:
+      id: "mbta-feed-message-pipeline"
+      agency_id: "MBTA"
+      type: "feed_message"
+      sources: ["mbta-vehicle-positions"]
+      state_store: "mbta-feed-message-state-store"
+      sinks: ["feed-message-connector"]
+
+    vp-pipeline:
+      id: "vp-pipeline"
+      type: "vehicle_position"
+      sources: ["feed-message-connector"]
+      state_store: "vp-state-store"
+      sinks: ["redis-vp-sink", "console-sink", "sse-sink"]
