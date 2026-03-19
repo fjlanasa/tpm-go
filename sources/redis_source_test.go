@@ -30,7 +30,7 @@ func TestRedisSourceReceivesMessage(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	publisher := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	defer publisher.Close()
+	defer func() { _ = publisher.Close() }()
 
 	want := "hello-redis-source"
 	if err := publisher.Publish(ctx, channel, want).Err(); err != nil {

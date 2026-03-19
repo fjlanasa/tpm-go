@@ -22,9 +22,9 @@ func TestRedisSinkPublishesEvent(t *testing.T) {
 
 	// Subscribe before creating the sink so we don't miss the message.
 	subscriber := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	defer subscriber.Close()
+	defer func() { _ = subscriber.Close() }()
 	pubsub := subscriber.Subscribe(ctx, channel)
-	defer pubsub.Close()
+	defer func() { _ = pubsub.Close() }()
 	msgCh := pubsub.Channel()
 
 	sink, err := NewRedisSink(ctx, config.RedisSinkConfig{
