@@ -6,6 +6,7 @@ import (
 	"time"
 
 	pb "github.com/fjlanasa/tpm-go/api/v1/events"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -68,6 +69,80 @@ func createVehiclePosition(vehicleID, stopID, routeID string, status pb.StopStat
 			StopSequence: 5,
 			AgencyId:     "agency1",
 		},
+	}
+}
+
+func TestStopEventProcessorBytesInput(t *testing.T) {
+	flow := NewStopEventProcessor(context.Background(), nil)
+	results := make([]*pb.StopEvent, 0)
+	done := make(chan bool)
+
+	go func() {
+		for event := range flow.Out() {
+			if stopEvent, ok := event.(*pb.StopEvent); ok {
+				results = append(results, stopEvent)
+			}
+		}
+		done <- true
+	}()
+
+	// Send two VehiclePositionEvents as marshalled bytes (simulating Redis source)
+	vp1 := createVehiclePosition("v1", "s1", "Red", pb.StopStatus_IN_TRANSIT_TO, 1000)
+	vp2 := createVehiclePosition("v1", "s1", "Red", pb.StopStatus_STOPPED_AT, 1001)
+
+	b1, err := proto.Marshal(vp1)
+	if err != nil {
+		t.Fatalf("failed to marshal vp1: %v", err)
+	}
+	b2, err := proto.Marshal(vp2)
+	if err != nil {
+		t.Fatalf("failed to marshal vp2: %v", err)
+	}
+
+	flow.In() <- b1
+	flow.In() <- b2
+	close(flow.In())
+
+	<-done
+
+	if len(results) != 1 {
+		t.Fatalf("got %d events, want 1", len(results))
+	}
+
+	got := results[0]
+	if got.StopEventType != pb.StopEvent_ARRIVAL {
+		t.Errorf("got event type %v, want ARRIVAL", got.StopEventType)
+	}
+	if got.Attributes.VehicleId != "v1" {
+		t.Errorf("got vehicle ID %q, want %q", got.Attributes.VehicleId, "v1")
+	}
+	if got.Attributes.StopId != "s1" {
+		t.Errorf("got stop ID %q, want %q", got.Attributes.StopId, "s1")
+	}
+}
+
+func TestStopEventProcessorInvalidBytesInput(t *testing.T) {
+	flow := NewStopEventProcessor(context.Background(), nil)
+	results := make([]*pb.StopEvent, 0)
+	done := make(chan bool)
+
+	go func() {
+		for event := range flow.Out() {
+			if stopEvent, ok := event.(*pb.StopEvent); ok {
+				results = append(results, stopEvent)
+			}
+		}
+		done <- true
+	}()
+
+	// Send invalid bytes — should be silently dropped
+	flow.In() <- []byte("not a valid protobuf")
+	close(flow.In())
+
+	<-done
+
+	if len(results) != 0 {
+		t.Errorf("got %d events for invalid bytes, want 0", len(results))
 	}
 }
 

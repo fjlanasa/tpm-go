@@ -7,9 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make generate        # Compile .proto files (required before build/test)
 make test            # Run all tests (runs generate first)
+make lint            # Run golangci-lint (must pass before committing)
 make run             # Run the application (runs generate first)
 go test -v ./processors/transit/stop_events/...  # Run a single package's tests
 ```
+
+After making changes, always run `make lint` and fix any issues before considering the work complete.
 
 Requires: Go 1.22+, `protoc` with `protoc-gen-go` plugin.
 
@@ -34,14 +37,14 @@ Pipelines connect to each other via **Connectors** — in-memory channels where 
 ### Processing Chain
 
 ```
-HTTP Source (polls GTFS-RT feed)
+HTTP Source (polls GTFS-RT feed) or Redis Source (subscribes to channel)
   → FeedMessageProcessor (binary → FeedMessageEvent)
     → VehiclePositionEventProcessor (extracts positions)
       → StopEventProcessor (detects arrivals/departures using state)
         → HeadwayEventProcessor, DwellEventProcessor, TravelTimeEventProcessor
 ```
 
-Each arrow represents a separate pipeline connected via connectors.
+Each arrow represents a separate pipeline connected via connectors. Pipelines can also publish events to Redis channels via the Redis sink for cross-service communication.
 
 ### Stateful Processors
 
@@ -54,8 +57,8 @@ Each arrow represents a separate pipeline connected via connectors.
 - `graphs/` — Graph orchestrator: instantiates all components from config, runs pipelines
 - `pipelines/` — Pipeline runner: wires Source → Processor → Sinks using go-streams
 - `processors/transit/` — Six processor types, one subdirectory each
-- `sources/` — Source implementations (HTTP polling is the primary one)
-- `sinks/` — Sink implementations (console logging, SSE broadcasting, connectors)
+- `sources/` — Source implementations (HTTP polling, Redis pub/sub, connectors)
+- `sinks/` — Sink implementations (console, SSE, Redis pub/sub, Postgres, S3/Parquet, connectors)
 - `state_stores/` — StateStore interface and implementations
 - `event_server/` — SSE server for real-time event streaming to clients
 
@@ -66,3 +69,10 @@ Pipeline types in config: `feed_message`, `vehicle_position`, `stop_event`, `dwe
 ### Data Model
 
 All event types are defined in `api/v1/events/transit.proto`. Events share an `EventAttributes` message containing common fields (agency_id, vehicle_id, route_id, stop_id, trip_id, etc.). State stores use `proto.Message` as the value type.
+
+### Testing
+
+Tests use in-process fakes instead of requiring external services:
+- **Redis**: `alicebob/miniredis` provides an in-memory Redis server (no real Redis needed)
+- **Database**: `DATA-DOG/go-sqlmock` for Postgres sink tests
+- All tests run via `make test` with no external dependencies

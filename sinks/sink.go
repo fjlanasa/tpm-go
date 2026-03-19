@@ -28,6 +28,8 @@ func NewSink(
 		return NewDatabaseSink(ctx, cfg)
 	case config.SinkTypeParquet:
 		return NewParquetSink(ctx, cfg)
+	case config.SinkTypeRedis:
+		return NewRedisSink(ctx, cfg.Redis)
 	}
 	return nil, fmt.Errorf("unknown sink type: %s", cfg.Type)
 }

@@ -1,0 +1,106 @@
+graph:
+  connectors:
+    se-connector:
+    headway-connector:
+    dwell-connector:
+    travel-time-connector:
+
+  sources:
+    redis-vp-source:
+      type: "redis"
+      redis:
+        addr: "redis:6379"
+        channel: "vehicle-positions"
+
+  sinks:
+    console-sink:
+      type: "console"
+      console:
+        level: "info"
+    sse-sink:
+      type: "sse"
+      sse:
+        port: "8081"
+        path: "/events"
+    db-sink:
+      type: "database"
+      database:
+        driver: "postgres"
+        dsn: "postgres://tpm:tpm@postgres:5432/tpm?sslmode=disable"
+    parquet-stop-events:
+      type: "parquet"
+      parquet:
+        bucket_name: "tpm-events"
+        prefix: "transit/stop_events"
+        event_type: "stop_event"
+        aws_region: "us-east-1"
+        aws_endpoint_url: "http://minio:9000"
+        aws_access_key: "minioadmin"
+        aws_secret_key: "minioadmin"
+      flush_interval: "60s"
+      flush_threshold: 100
+    parquet-headway-events:
+      type: "parquet"
+      parquet:
+        bucket_name: "tpm-events"
+        prefix: "transit/headway_events"
+        event_type: "headway_event"
+        aws_region: "us-east-1"
+        aws_endpoint_url: "http://minio:9000"
+        aws_access_key: "minioadmin"
+        aws_secret_key: "minioadmin"
+      flush_interval: "60s"
+      flush_threshold: 100
+    parquet-dwell-events:
+      type: "parquet"
+      parquet:
+        bucket_name: "tpm-events"
+        prefix: "transit/dwell_events"
+        event_type: "dwell_event"
+        aws_region: "us-east-1"
+        aws_endpoint_url: "http://minio:9000"
+        aws_access_key: "minioadmin"
+        aws_secret_key: "minioadmin"
+      flush_interval: "60s"
+      flush_threshold: 100
+    parquet-travel-time-events:
+      type: "parquet"
+      parquet:
+        bucket_name: "tpm-events"
+        prefix: "transit/travel_time_events"
+        event_type: "travel_time_event"
+        aws_region: "us-east-1"
+        aws_endpoint_url: "http://minio:9000"
+        aws_access_key: "minioadmin"
+        aws_secret_key: "minioadmin"
+      flush_interval: "60s"
+      flush_threshold: 100
+
+  pipelines:
+    se-pipeline:
+      id: "se-pipeline"
+      type: "stop_event"
+      sources: ["redis-vp-source"]
+      state_store: "se-state-store"
+      sinks: ["headway-connector", "dwell-connector", "travel-time-connector", "console-sink", "sse-sink", "db-sink", "parquet-stop-events"]
+
+    headway-pipeline:
+      id: "headway-pipeline"
+      type: "headway_event"
+      sources: ["headway-connector"]
+      state_store: "headway-state-store"
+      sinks: ["console-sink", "sse-sink", "db-sink", "parquet-headway-events"]
+
+    dwell-pipeline:
+      id: "dwell-pipeline"
+      type: "dwell_event"
+      sources: ["dwell-connector"]
+      state_store: "dwell-state-store"
+      sinks: ["console-sink", "sse-sink", "db-sink", "parquet-dwell-events"]
+
+    travel-time-pipeline:
+      id: "travel-time-pipeline"
+      type: "travel_time"
+      sources: ["travel-time-connector"]
+      state_store: "travel-time-state-store"
+      sinks: ["console-sink", "sse-sink", "db-sink", "parquet-travel-time-events"]
