@@ -1,4 +1,36 @@
-.PHONY: generate check-generate test lint coverage setup
+.PHONY: generate check-generate test lint coverage setup check-deps run
+
+# Tool versions
+PROTOC_GEN_GO_VERSION := v1.35.2
+
+check-deps:
+	@missing=0; \
+	if ! command -v protoc >/dev/null 2>&1; then \
+		echo "✗ protoc not found"; \
+		echo "  Install: brew install protobuf"; \
+		missing=1; \
+	else \
+		echo "✓ protoc found: $$(protoc --version)"; \
+	fi; \
+	if ! command -v protoc-gen-go >/dev/null 2>&1; then \
+		echo "✗ protoc-gen-go not found"; \
+		echo "  Install: go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)"; \
+		missing=1; \
+	else \
+		echo "✓ protoc-gen-go found"; \
+	fi; \
+	if ! command -v golangci-lint >/dev/null 2>&1; then \
+		echo "✗ golangci-lint not found"; \
+		echo "  Install: brew install golangci-lint"; \
+		missing=1; \
+	else \
+		echo "✓ golangci-lint found: $$(golangci-lint --version 2>&1 | head -1)"; \
+	fi; \
+	if [ $$missing -ne 0 ]; then \
+		echo ""; \
+		echo "Install all missing dependencies and re-run 'make setup'."; \
+		exit 1; \
+	fi
 
 generate:
 	protoc \
@@ -25,22 +57,13 @@ test:
 run:
 	go run .
 
-run-frontend:
-	cd frontend/tpm-ui && npm run dev
-
-run-backend:
-	go run .
-
-run-all: run-backend run-frontend
-	cd frontend/tpm-ui && npm run dev
-
 lint:
 	golangci-lint run ./...
 
 coverage:
 	go test -race -coverprofile=coverage.out ./... && go tool cover -func=coverage.out
 
-setup:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.2
+setup: check-deps
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)
 	go mod download
-	@echo "Setup complete. Ensure 'protoc' and 'golangci-lint' are installed on your system."
+	@echo "Setup complete. All dependencies verified."
