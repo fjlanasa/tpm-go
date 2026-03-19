@@ -201,11 +201,22 @@ func (s *StopEventProcessor) doStream(ctx context.Context) {
 			if !ok {
 				return
 			}
-			if vp, ok := event.(*pb.VehiclePositionEvent); ok {
-				s.process(vp)
-			} else {
+			var vp *pb.VehiclePositionEvent
+			switch v := event.(type) {
+			case *pb.VehiclePositionEvent:
+				vp = v
+			case []uint8:
+				msg := &pb.VehiclePositionEvent{}
+				if err := proto.Unmarshal(v, msg); err != nil {
+					slog.Warn("StopEventProcessor: failed to unmarshal bytes", "error", err)
+					continue
+				}
+				vp = msg
+			default:
 				slog.Warn("Received non-VehiclePositionEvent", "type", fmt.Sprintf("%T", event))
+				continue
 			}
+			s.process(vp)
 		}
 	}
 }
