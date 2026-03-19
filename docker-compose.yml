@@ -130,7 +130,7 @@ services:
       - "4317:4317"
       - "4318:4318"
     volumes:
-      - ./config.alloy:/etc/alloy/config.alloy
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy
       - ./logs:/tmp/app-logs/
     command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     depends_on:
@@ -144,7 +144,7 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./loki-config.yaml:/etc/loki/local-config.yaml
+      - ./observability/loki/loki-config.yaml:/etc/loki/local-config.yaml
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - tpm
@@ -161,7 +161,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
     networks:
       - tpm
 
